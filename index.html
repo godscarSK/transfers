@@ -171,6 +171,18 @@ function parsePlayer(text){
   }
   const n = t.match(/\[pid=(\d+)\]([^\[]*)\[\/pid\]/i);
   if(n){ p.pid = n[1]; p.name = n[2].trim(); }
+  // Respaldo independiente del idioma: Sokker entrega siempre los valores en el mismo orden
+  // (form, disciplina táctica, stamina, keeper, pace, defender, technique, playmaker, passing, striker)
+  if(missing.length){
+    const nums = [...t.matchAll(/\[b\]\s*\[(\d+)\]\s*\[\/b\]/g)].map(m=>+m[1]);
+    const ageM = t.match(/\[b\]\s*(\d{1,2})\s*\[\/b\]/);
+    if(nums.length>=10 && ageM){
+      const order = ['stam','gk','pace','def','tech','pm','pass','str'];
+      p.age = +ageM[1];
+      order.forEach((k,i)=>p[k]=nums[i+2]);
+      missing.length = 0;
+    }
+  }
   p.missing = missing;
   if(missing.length) return p;
   // Sum-skills (mismas fórmulas que el Excel)
