@@ -54,6 +54,14 @@
   .skills table{width:auto}
   .skills th,.skills td{text-align:center;padding:5px 10px}
   .pager{display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 10px}
+  .stat{background:var(--accent-soft);border-radius:8px;padding:8px 12px}
+  .stat span{display:block;font-size:.78rem;color:var(--muted)}
+  .stat b{font-size:1.05rem;font-variant-numeric:tabular-nums}
+  .hiddenbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px;font-size:.85rem;color:var(--muted)}
+  .hiddenbar button{padding:2px 10px;font-size:.85rem}
+  th .hide-col{border:0;background:transparent;padding:0 0 0 6px;margin:0;color:var(--muted);font-size:.95rem;line-height:1;cursor:pointer}
+  th .hide-col:hover{color:#c62828}
   .desc{background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:.88rem;margin-top:12px}
   .desc b{font-weight:600}
 </style>
@@ -141,10 +149,14 @@
 <div id="results">
   <section class="card hide" id="cardResDb"><h2>Resultados — Transfers DB</h2>
     <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button></div>
-    <div class="skills tablewrap" id="cmpDb" style="max-height:none;margin:0 0 10px"></div><div class="tablewrap" id="resDb"></div></section>
+    <div class="skills tablewrap" id="cmpDb" style="max-height:none;margin:0 0 10px"></div>
+    <div class="stats hide" id="statsDb"></div>
+    <div class="hiddenbar hide" id="hidDb"></div><div class="tablewrap" id="resDb"></div></section>
   <section class="card hide" id="cardResLive"><h2>Resultados — Transfers Live</h2>
     <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button></div>
-    <div class="skills tablewrap" id="cmpLive" style="max-height:none;margin:0 0 10px"></div><div class="tablewrap" id="resLive"></div></section>
+    <div class="skills tablewrap" id="cmpLive" style="max-height:none;margin:0 0 10px"></div>
+    <div class="stats hide" id="statsLive"></div>
+    <div class="hiddenbar hide" id="hidLive"></div><div class="tablewrap" id="resLive"></div></section>
 </div>
 
 <script>
@@ -226,7 +238,7 @@ function buildUrl(live, page){
     const s = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
     q.push(['ssnsfr', s-w], ['ssnsto', s]);
     if($('useWeek').checked && player.week!==undefined){
-      q.push(['weekfr', Math.max(1, player.week-2)], ['weekto', Math.min(16, player.week+2)]);
+      q.push(['weekfr', Math.max(1, player.week-2)], ['weekto', Math.min(13, player.week+2)]);
     }
   }
   q.push(['curr', $('curr').value], ['agemin', p.age], ['agemax', p.age]);
@@ -253,7 +265,7 @@ function refresh(){
   $('useWeek').disabled = !hasWeek;
   if(!hasWeek) $('useWeek').checked = false;
   $('weekLabel').textContent = hasWeek
-    ? 'Filtrar por semana (solo DB): semanas '+Math.max(1,player.week-2)+' a '+Math.min(16,player.week+2)+' (semana '+player.week+' ±2)'
+    ? 'Filtrar por semana (solo DB): semanas '+Math.max(1,player.week-2)+' a '+Math.min(13,player.week+2)+' (semana '+player.week+' ±2)'
     : 'Filtrar por semana (solo DB) — requiere el formato de 9 números';
   const ok = player && !player.missing.length && !(pos==='GK' && player.gk===undefined);
   for(const k of ['Db','Live']){
@@ -349,6 +361,71 @@ function appendRows(tbody, rows){
   }
 }
 
+const data = {Db:null, Live:null}, hidden = {Db:new Set(), Live:new Set()};
+
+const fmt = n => Math.round(n).toLocaleString('es-CL');
+function renderStats(k){
+  const box = $('stats'+k), d = data[k];
+  box.innerHTML = '';
+  const pi = d.head.findIndex(c=>/price|precio/i.test(c.text));
+  if(pi<0){ box.classList.add('hide'); return; }
+  const vals = []; let unit = '';
+  for(const r of d.rows){
+    const t = (r[pi]||{}).text||'';
+    const n = parseInt(t.replace(/[^\d]/g,''),10);
+    if(!isNaN(n)){ vals.push(n); if(!unit) unit = t.replace(/[\d\s\u00a0]/g,'').trim(); }
+  }
+  if(!vals.length){ box.classList.add('hide'); return; }
+  vals.sort((a,b)=>a-b);
+  const m = vals.length>>1, med = vals.length%2 ? vals[m] : (vals[m-1]+vals[m])/2;
+  const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
+  const items = [['Precio máximo',vals[vals.length-1]],['Precio promedio',avg],['Mediana',med],['Precio mínimo',vals[0]]];
+  for(const [l,v] of items){
+    const d1 = document.createElement('div'); d1.className='stat';
+    d1.innerHTML = '<span></span><b></b>'; d1.firstChild.textContent = l+' ('+vals.length+' jugadores)'; d1.lastChild.textContent = fmt(v)+(unit?' '+unit:'');
+    box.appendChild(d1);
+  }
+  box.classList.remove('hide');
+}
+
+function renderResults(k){
+  const d = data[k], box = $('res'+k), hid = hidden[k], bar = $('hid'+k);
+  const table = document.createElement('table');
+  const tr = table.createTHead().insertRow();
+  d.head.forEach((c,i)=>{
+    if(hid.has(i)) return;
+    const th = document.createElement('th'); th.textContent = c.text;
+    const b = document.createElement('button'); b.className='hide-col'; b.type='button'; b.textContent='×'; b.title='Ocultar columna';
+    b.addEventListener('click',()=>{ hid.add(i); renderResults(k); });
+    th.appendChild(b); tr.appendChild(th);
+  });
+  const tbody = table.createTBody();
+  for(const r of d.rows){
+    const row = tbody.insertRow();
+    r.forEach((c,i)=>{
+      if(hid.has(i)) return;
+      const td = row.insertCell();
+      if(c.href){ const l=document.createElement('a'); l.href=c.href; l.target='_blank'; l.rel='noopener'; l.textContent=c.text; td.appendChild(l); }
+      else td.textContent = c.text;
+    });
+  }
+  box.innerHTML=''; box.appendChild(table);
+  bar.innerHTML = '';
+  if(hid.size){
+    bar.appendChild(document.createTextNode('Columnas ocultas:'));
+    [...hid].sort((a,b)=>a-b).forEach(i=>{
+      const b = document.createElement('button'); b.type='button'; b.textContent = (d.head[i]?d.head[i].text:'col '+(i+1))+' +'; b.title='Mostrar columna';
+      b.addEventListener('click',()=>{ hid.delete(i); renderResults(k); });
+      bar.appendChild(b);
+    });
+    const all = document.createElement('button'); all.type='button'; all.textContent='Mostrar todas';
+    all.addEventListener('click',()=>{ hid.clear(); renderResults(k); });
+    bar.appendChild(all);
+    bar.classList.remove('hide');
+  } else bar.classList.add('hide');
+  renderStats(k);
+}
+
 const cur = {Db:1, Live:1}, lastSig = {Db:null, Live:null};
 async function loadPage(k, page){
   const live = k==='Live', st = $('status'+k), box = $('res'+k), card = $('cardRes'+k);
@@ -366,11 +443,8 @@ async function loadPage(k, page){
       cur[k]=1; $('pg'+k).textContent='Página 1';
     }else{
       cur[k]=page; lastSig[k]=sig;
-      const table = document.createElement('table');
-      const tr = table.createTHead().insertRow();
-      for(const c of head){ const th=document.createElement('th'); th.textContent=c.text; tr.appendChild(th); }
-      appendRows(table.createTBody(), rows);
-      box.innerHTML=''; box.appendChild(table); card.classList.remove('hide');
+      data[k] = {head, rows};
+      renderResults(k); card.classList.remove('hide');
       const cmp = $('cmp'+k), src = $('skills').querySelector('table');
       cmp.innerHTML = '';
       if(src){ cmp.appendChild(src.cloneNode(true)); cmp.classList.remove('hide'); }
