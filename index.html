@@ -50,7 +50,7 @@
   button.danger{background:#c62828;border-color:#c62828;color:#fff;font-weight:600}
   button.danger:hover{background:#a81f1f;border-color:#a81f1f}
   button:disabled{opacity:.45;cursor:not-allowed}
-  .skills{margin-top:12px;display:block;width:fit-content;max-width:100%}
+  .skills{margin:12px auto 0;display:block;width:fit-content;max-width:100%}
   .skills table{width:auto}
   .skills th,.skills td{text-align:center;padding:5px 10px}
   .pager{display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap}
@@ -322,12 +322,16 @@ function renderSummary(){
   if(player.missing.length) return;
   const cols = [['stam','stam'],['pace','pace'],['tech','tech'],['pass','pass'],['gk','gk'],['def','def'],['pm','pm'],['str','str'],
     ['full','ssFull'],['def','ssDef'],['def sides','ssDefSd'],['mid','ssMid'],['wing','ssWing'],['att','ssAtt'],['att sides','ssAttSd']];
-  const t = document.createElement('table');
+  const t = document.createElement('table'); t.className = 'res';
   const hr = t.createTHead().insertRow(), br = t.createTBody().insertRow();
-  for(const [label,key] of cols){
-    const th = document.createElement('th'); th.textContent = label; hr.appendChild(th);
-    br.insertCell().textContent = player[key]===undefined ? '' : player[key];
-  }
+  cols.forEach(([label,key],i)=>{
+    let cls = '';
+    if(i<8 && SKILL_COLS.includes(key)) cls += ' sk sk-'+key;
+    if(key==='pace') cls += ' div-l';
+    if(key==='str' || key==='ssFull') cls += ' div-r';
+    const th = document.createElement('th'); th.textContent = label; th.className = cls; hr.appendChild(th);
+    const td = br.insertCell(); td.className = cls; td.textContent = player[key]===undefined ? '' : player[key];
+  });
   sk.appendChild(t); sk.classList.remove('hide');
 }
 
@@ -429,6 +433,7 @@ function columnMeta(head){
     if(!afterFull && SKILL_COLS.includes(l)) cls += ' sk sk-'+l;
     if(!afterFull && l==='pace') cls += ' div-l';
     if(!afterFull && l==='str') cls += ' div-r';
+    if(l==='full') cls += ' div-r';
     return {i, l, cls, after: afterFull};
   });
 }
@@ -438,7 +443,7 @@ function playerValue(m, p){
   const sums = {def:'ssDef','def sides':'ssDefSd',mid:'ssMid',wing:'ssWing',att:'ssAtt','att sides':'ssAttSd'};
   if(m.l==='name') return p.name || 'Jugador buscado';
   if(m.l==='age') return p.age;
-  if(m.l==='season') return p.week!==undefined ? 'T/'+p.week : '';
+  if(m.l==='season') return p.week!==undefined ? 'TT/'+p.week : '';
   if(m.l==='full') return p.ssFull;
   const key = (m.after ? sums : skill)[m.l];
   return key ? p[key] : '';
@@ -446,7 +451,13 @@ function playerValue(m, p){
 
 function renderResults(k){
   const d = data[k], box = $('res'+k), hid = hidden[k], bar = $('hid'+k);
-  const cols = columnMeta(d.head).filter(m=>!HIDE_COLS.includes(m.l));
+  const SUMS = ['def','def sides','mid','wing','att','att sides'];
+  const SHOW = {DEF:['def','def sides'], MID:['mid','wing'], ATT:['att','att sides'], GK:[]};
+  const cols = columnMeta(d.head).filter(m=>{
+    if(HIDE_COLS.includes(m.l)) return false;
+    if(m.after && SUMS.includes(m.l) && d.mode) return SHOW[d.mode].includes(m.l);
+    return true;
+  });
   const table = document.createElement('table'); table.className = 'res';
   const thead = table.createTHead();
   const tr = thead.insertRow();
@@ -508,7 +519,7 @@ async function loadPage(k, page){
       cur[k]=1; $('pg'+k).textContent='Página 1';
     }else{
       cur[k]=page; lastSig[k]=sig;
-      data[k] = {head, rows, player}; hidden[k].clear();
+      data[k] = {head, rows, player, mode: $('natMode').checked ? null : pos}; hidden[k].clear();
       renderResults(k); card.classList.remove('hide');
       $('pg'+k).textContent = 'Página '+page;
       st.textContent = rows.length+' filas en la página '+page+'.';
