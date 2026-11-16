@@ -62,6 +62,10 @@
   .hiddenbar button{padding:2px 10px;font-size:.85rem}
   :root{--hl:#d9480f;--hl-soft:#fff0e3}
   @media (prefers-color-scheme:dark){:root{--hl:#ffa94d;--hl-soft:#3a2a17}}
+  :root{--b1:#2f6fdb;--b2:#8e44ad;--bdb:#1f9d6b;--blive:#d6336c}
+  @media (prefers-color-scheme:dark){:root{--b1:#6aa3ff;--b2:#c08be0;--bdb:#4cd09a;--blive:#ff7aa8}}
+  .card.sec-1{border:2px solid var(--b1)} .card.sec-2{border:2px solid var(--b2)}
+  .card.sec-db{border:2px solid var(--bdb)} .card.sec-live{border:2px solid var(--blive)}
   :root{--zebra:#eef5f0;--c-pace:#1f5fd1;--c-tech:#7b3fc4;--c-pass:#a67c00;--c-gk:#8b5a2b;--c-def:#e8590c;--c-pm:#d62828;--c-str:#6b7280}
   @media (prefers-color-scheme:dark){:root{--zebra:#1d2b23;--c-pace:#6aa3ff;--c-tech:#b894ff;--c-pass:#f2c230;--c-gk:#c99a6b;--c-def:#ff922b;--c-pm:#ff6b6b;--c-str:#aab2bd}}
   table.res th,table.res td{text-align:center}
@@ -74,7 +78,7 @@
   table.res .div-r{border-right:3px solid var(--muted)}
   .hide-row{border:0;background:transparent;padding:0 4px;margin:0;color:var(--muted);font-size:1rem;line-height:1;cursor:pointer}
   .hide-row:hover{color:#c62828;border:0}
-  table.res thead td{position:sticky;top:var(--hh,30px);background:var(--hl-soft);border:2px solid var(--hl);font-weight:600;text-align:left;z-index:1}
+  table.res thead td{position:sticky;top:var(--hh,30px);background:var(--hl-soft);border:2px solid var(--hl);font-weight:600;z-index:1}
   .desc{background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:.88rem;margin-top:12px}
   .desc b{font-weight:600}
 </style>
@@ -84,7 +88,7 @@
   <h1>Buscador de transferencias Sokker</h1>
   <p class="sub">Pega los datos de un jugador (con el botón de copiar de Sokker), elige su posición y consulta las transferencias parecidas en <em>Transfers DB</em> y <em>Transfers Live</em>.</p>
 
-  <section class="card">
+  <section class="card sec-1">
     <h2>1. Datos del jugador</h2>
     <div class="row" style="justify-content:space-between;margin-bottom:3px">
       <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker, o los 9 números: semana edad stam pace tech pass def pm str</label>
@@ -96,7 +100,7 @@
     <div id="skills" class="skills tablewrap hide" style="max-height:none"></div>
   </section>
 
-  <section class="card">
+  <section class="card sec-2">
     <h2>2. ¿Qué busco?</h2>
     <div class="row" style="margin-bottom:12px">
       <div class="seg" id="posSeg">
@@ -133,7 +137,7 @@
   </section>
 
   <div class="two">
-    <section class="card">
+    <section class="card sec-db">
       <h2>Transfers DB <span style="font-weight:400;color:var(--muted)">(historial)</span></h2>
       <label for="orderDb">Ordenar por</label>
       <select id="orderDb" style="margin-bottom:8px">
@@ -148,7 +152,7 @@
       <div class="status" id="statusDb"></div>
     </section>
 
-    <section class="card">
+    <section class="card sec-live">
       <h2>Transfers Live <span style="font-weight:400;color:var(--muted)">(en curso)</span></h2>
       <label for="orderLive">Ordenar por</label>
       <select id="orderLive" style="margin-bottom:8px">
@@ -166,11 +170,11 @@
 </main>
 
 <div id="results">
-  <section class="card hide" id="cardResDb"><h2>Resultados — Transfers DB</h2>
+  <section class="card sec-db hide" id="cardResDb"><h2>Resultados — Transfers DB</h2>
     <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button></div>
     <div class="stats hide" id="statsDb"></div>
     <div class="hiddenbar hide" id="hidDb"></div><div class="tablewrap" id="resDb"></div></section>
-  <section class="card hide" id="cardResLive"><h2>Resultados — Transfers Live</h2>
+  <section class="card sec-live hide" id="cardResLive"><h2>Resultados — Transfers Live</h2>
     <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button></div>
     <div class="stats hide" id="statsLive"></div>
     <div class="hiddenbar hide" id="hidLive"></div><div class="tablewrap" id="resLive"></div></section>
@@ -434,6 +438,7 @@ function playerValue(m, p){
   const sums = {def:'ssDef','def sides':'ssDefSd',mid:'ssMid',wing:'ssWing',att:'ssAtt','att sides':'ssAttSd'};
   if(m.l==='name') return p.name || 'Jugador buscado';
   if(m.l==='age') return p.age;
+  if(m.l==='season') return p.week!==undefined ? 'T/'+p.week : '';
   if(m.l==='full') return p.ssFull;
   const key = (m.after ? sums : skill)[m.l];
   return key ? p[key] : '';
