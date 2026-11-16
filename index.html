@@ -91,10 +91,10 @@
   <section class="card sec-1">
     <h2>1. Datos del jugador</h2>
     <div class="row" style="justify-content:space-between;margin-bottom:3px">
-      <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker, o los 9 números: semana edad stam pace tech pass def pm str</label>
+      <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker, o NOMBRE temporada semana edad stam pace tech pass def pm str</label>
       <button class="danger" id="clearBtn" type="button">Limpiar</button>
     </div>
-    <textarea id="paste" placeholder="8 19 4 12 6 5 11 4 6&#10;&#10;o el texto de Sokker:&#10;[b][pid=40397542]Omar Lisboa[/pid][/b], age: [b]18[/b], height [b]185[/b] cm&#10;...&#10;stamina [b][5][/b] [b]average[/b], keeper [b][9][/b] [b]very good[/b]&#10;pace [b][8][/b] ..."></textarea>
+    <textarea id="paste" placeholder="CAYO ANDAUR 74 2 21 5 13 10 6 13 8 4&#10;&#10;o el texto de Sokker:&#10;[b][pid=40397542]Omar Lisboa[/pid][/b], age: [b]18[/b], height [b]185[/b] cm&#10;...&#10;stamina [b][5][/b] [b]average[/b], keeper [b][9][/b] [b]very good[/b]&#10;pace [b][8][/b] ..."></textarea>
     <div id="parseMsg" class="err hide"></div>
     <div id="summary" class="chips"></div>
     <div id="skills" class="skills tablewrap hide" style="max-height:none"></div>
@@ -205,14 +205,24 @@ let player = null, pos = 'GK';
 /* ---------- Parseo del texto de Sokker ---------- */
 function parsePlayer(text){
   const t = text.replace(/ /g,' ');
-  // Formato compacto: semana edad stam pace tech pass def pm str (9 números, sin keeper)
-  if(/^[\d\s,;]+$/.test(t)){
-    const n = t.split(/[\s,;]+/).filter(Boolean).map(Number);
-    if(n.length===9){
-      const [week,age,stam,pace,tech,pass,def,pm,str] = n;
-      return addSums({week,age,stam,pace,tech,pass,def,pm,str,missing:[]});
+  // Formato compacto: [NOMBRE] [temporada] semana edad stam pace tech pass def pm str
+  if(!t.includes('[')){
+    const tok = t.trim().split(/[\s,;]+/).filter(Boolean);
+    const isNum = x => /^\d+$/.test(x);
+    let k = tok.length; while(k>0 && isNum(tok[k-1]) && tok.length-k<10) k--;
+    const nums = tok.slice(k).map(Number), nameTok = tok.slice(0,k);
+    if(tok.length && (nameTok.length ? nums.length===10 : nums.length>=9 && nums.length===tok.length)){
+      const name = nameTok.join(' ');
+      const [season,...rest] = nums.length===10 ? nums : [undefined,...nums];
+      const [week,age,stam,pace,tech,pass,def,pm,str] = rest;
+      const p = {week,age,stam,pace,tech,pass,def,pm,str,missing:[]};
+      if(season!==undefined) p.season = season;
+      if(name) p.name = name;
+      return addSums(p);
     }
-    return {missing:['9 números: semana edad stam pace tech pass def pm str (encontré '+n.length+')']};
+    if(tok.length && !nameTok.length || (nameTok.length && nums.length>0 && nums.length<10)){
+      return {missing:['formato compacto: NOMBRE temporada semana edad stam pace tech pass def pm str (10 números tras el nombre; encontré '+nums.length+')']};
+    }
   }
   const age = (t.match(/age:\s*(?:\[b\])?\s*(\d+)/i)||[])[1];
   const p = {};
@@ -292,7 +302,7 @@ function refresh(){
   if(!hasWeek) $('useWeek').checked = false;
   $('weekLabel').textContent = hasWeek
     ? 'Filtrar por semana (solo DB): semanas '+Math.max(1,player.week-2)+' a '+Math.min(13,player.week+2)+' (semana '+player.week+' ±2)'
-    : 'Filtrar por semana (solo DB) — requiere el formato de 9 números';
+    : 'Filtrar por semana (solo DB) — requiere el formato con números (con semana)';
   const ok = $('natMode').checked ? !!$('nat').value : !!(player && !player.missing.length && !(pos==='GK' && player.gk===undefined));
   for(const k of ['Db','Live']){
     const u = ok ? buildUrl(k==='Live', 1) : '';
@@ -317,6 +327,7 @@ function renderSummary(){
   }
   const chip = (l,v)=>{ if(v===undefined) return; const s=document.createElement('span'); s.className='chip'; s.innerHTML = l+' <b>'+v+'</b>'; box.appendChild(s); };
   if(player.name) chip('Jugador', player.name.replace(/[<>&]/g,''));
+  if(player.season!==undefined) chip('temporada', player.season);
   if(player.week!==undefined) chip('semana', player.week);
   chip('edad', player.age);
   if(player.missing.length) return;
@@ -443,7 +454,7 @@ function playerValue(m, p){
   const sums = {def:'ssDef','def sides':'ssDefSd',mid:'ssMid',wing:'ssWing',att:'ssAtt','att sides':'ssAttSd'};
   if(m.l==='name') return p.name || 'Jugador buscado';
   if(m.l==='age') return p.age;
-  if(m.l==='season') return p.week!==undefined ? 'TT/'+p.week : '';
+  if(m.l==='season') return p.week!==undefined ? 'TT/'+(p.season!==undefined ? p.season+'/' : '')+p.week : '';
   if(m.l==='full') return p.ssFull;
   const key = (m.after ? sums : skill)[m.l];
   return key ? p[key] : '';
