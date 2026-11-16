@@ -62,6 +62,16 @@
   .hiddenbar button{padding:2px 10px;font-size:.85rem}
   :root{--hl:#d9480f;--hl-soft:#fff0e3}
   @media (prefers-color-scheme:dark){:root{--hl:#ffa94d;--hl-soft:#3a2a17}}
+  :root{--zebra:#eef5f0;--c-pace:#1f5fd1;--c-tech:#7b3fc4;--c-pass:#a67c00;--c-gk:#8b5a2b;--c-def:#e8590c;--c-pm:#d62828;--c-str:#6b7280}
+  @media (prefers-color-scheme:dark){:root{--zebra:#1d2b23;--c-pace:#6aa3ff;--c-tech:#b894ff;--c-pass:#f2c230;--c-gk:#c99a6b;--c-def:#ff922b;--c-pm:#ff6b6b;--c-str:#aab2bd}}
+  table.res th,table.res td{text-align:center}
+  table.res .c-name{text-align:left}
+  table.res tbody tr:nth-child(even) td{background:var(--zebra)}
+  table.res .sk{font-weight:600}
+  table.res .sk-pace{color:var(--c-pace)} table.res .sk-tech{color:var(--c-tech)} table.res .sk-pass{color:var(--c-pass)}
+  table.res .sk-gk{color:var(--c-gk)} table.res .sk-def{color:var(--c-def)} table.res .sk-pm{color:var(--c-pm)} table.res .sk-str{color:var(--c-str)}
+  table.res .div-l{border-left:3px solid var(--muted)}
+  table.res .div-r{border-right:3px solid var(--muted)}
   .hide-row{border:0;background:transparent;padding:0 4px;margin:0;color:var(--muted);font-size:1rem;line-height:1;cursor:pointer}
   .hide-row:hover{color:#c62828;border:0}
   table.res thead td{position:sticky;top:var(--hh,30px);background:var(--hl-soft);border:2px solid var(--hl);font-weight:600;text-align:left;z-index:1}
@@ -105,6 +115,12 @@
     <label style="display:flex;gap:8px;align-items:center;margin-top:12px;cursor:pointer;font-size:.9rem;color:var(--ink)">
       <input type="checkbox" id="useWeek" style="width:auto"> <span id="weekLabel">Filtrar por semana (solo DB)</span>
     </label>
+    <div class="row" style="margin-top:12px">
+      <label style="display:flex;gap:8px;align-items:center;margin:0;cursor:pointer;font-size:.9rem;color:var(--ink)">
+        <input type="checkbox" id="natMode" style="width:auto"> Buscar solo por país
+      </label>
+      <select id="nat" style="max-width:300px" disabled></select>
+    </div>
     <div class="desc" id="tolDesc"></div>
     <div style="margin-top:12px">
       <label for="extra">Parámetros extra (opcional, ej. <code>countr=40&amp;formmin=8</code>)</label>
@@ -165,6 +181,8 @@ const BASE_DB   = 'https://geston.smallhost.pl/sokker/transfers_db.php';
 const BASE_LIVE = 'https://geston.smallhost.pl/sokker/transfers_live.php';
 
 const CURRENCIES = ['€','zł','$','£','lei (România)','lei (Moldova)','R$','Ft','TL','Kč','u$s','k.$ (Colombia)','k.$ (Chile)','$U','лв.','sol','din','CHF','kr.','$MN','k.₫','KM','m','k Bs.','грн.','kr (Sverige)','kr (Ísland)','руб.','$ MN','₪','U$S','¥ (Zhōngguó)','¥ (Nippon)','Rs.','k Rp','Դրամ','C$ (Canada)','C$ (Nicaragua)','k G','E£','AU$','Bs','S$','k. ₩','₦','NZ$','k ¢','درهم','lek','ден.','RM','L','к руб.','R','ლ','฿','P','k. Fr','Q','ريال','RD$','HK$','k.¢','دج','د.ت','T','J$','د.إ','k so‘m','Sh','k.ريال'];
+
+const COUNTRIES = [[89,"Al Maghrib"],[105,"al-Jazā’ir"],[71,"Andorra"],[19,"Argentina"],[88,"as-Saʻūdiyya"],[6,"Australia"],[79,"Azərbaycan"],[46,"Belarus"],[28,"België"],[57,"Bolivia"],[47,"Bosna i Hercegovina"],[21,"Brasil"],[54,"Bulgaria"],[80,"Cameroun"],[5,"Canada"],[13,"Česká republika"],[42,"Chile"],[36,"Colombia"],[70,"Costa Rica"],[75,"Crna Gora"],[97,"Cuba"],[40,"Cymru"],[78,"Daehan Minguk"],[29,"Danmark"],[15,"Deutschland"],[58,"Ecuador"],[33,"Eesti"],[92,"El Salvador"],[3,"England"],[17,"España"],[16,"France"],[50,"Ghana"],[77,"Guatemala"],[66,"Hayastan"],[49,"Hellas"],[68,"Honduras"],[60,"Hong Kong"],[34,"Hrvatska"],[51,"India"],[65,"Indonesia"],[86,"Īrān"],[32,"Ireland"],[63,"Ísland"],[52,"Israel"],[10,"Italia"],[11,"Jamaica"],[103,"Kazakhstán"],[76,"Kenya"],[85,"Kypros"],[45,"Latvija"],[55,"Lëtzebuerg"],[23,"Lietuva"],[8,"Magyarország"],[59,"Malaysia"],[67,"Malta"],[18,"México"],[48,"Misr"],[69,"Moldova"],[12,"Nederland"],[2,"New Zealand"],[100,"Nicaragua"],[38,"Nigeria"],[62,"Nippon"],[27,"Norge"],[30,"Österreich"],[104,"O‘zbekiston"],[73,"Panamá"],[72,"Paraguay"],[37,"Perú"],[96,"Pilipinas"],[1,"Polska"],[20,"Portugal"],[90,"Prathet Thai"],[61,"República Dominicana"],[9,"România"],[43,"Rossiya"],[106,"Sakartvelo"],[24,"Schweiz"],[7,"Scotland"],[81,"Sénégal"],[56,"Severna Makedonija"],[53,"Shqipëria"],[83,"Singapore"],[26,"Slovenija"],[14,"Slovensko"],[22,"South Africa"],[39,"Srbija"],[25,"Suomi"],[31,"Sverige"],[87,"Tūnis"],[41,"Türkiye"],[99,"U.A.E."],[64,"Ukraina"],[35,"Uruguay"],[4,"USA"],[44,"Venezuela"],[84,"Việt Nam"],[82,"Zhōngguó"]];
 
 const SKILLS = [['stam','stamina'],['pace','pace'],['tech','technique'],['pass','passing'],['gk','keeper'],['def','defender'],['pm','playmaker'],['str','striker']];
 
@@ -233,16 +251,18 @@ function addSums(p){
 
 /* ---------- Construcción de enlaces ---------- */
 function buildUrl(live, page){
-  const p = player, tol = TOL[pos];
+  const p = player, tol = TOL[pos], natMode = $('natMode').checked;
   const q = [];
   if(!live){
     const s = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
     q.push(['ssnsfr', s-w], ['ssnsto', s]);
-    if($('useWeek').checked && player.week!==undefined){
+    if(!natMode && $('useWeek').checked && player.week!==undefined){
       q.push(['weekfr', Math.max(1, player.week-2)], ['weekto', Math.min(13, player.week+2)]);
     }
   }
-  q.push(['curr', $('curr').value], ['agemin', p.age], ['agemax', p.age]);
+  q.push(['curr', $('curr').value]);
+  if(natMode){ q.push(['nat', $('nat').value]); } else {
+  q.push(['agemin', p.age], ['agemax', p.age]);
   if(pos==='GK'){
     q.push(['pacmin',p.pace-tol],['pacmax',p.pace+tol],['keemin',p.gk],['keemax',p.gk]);
   }else if(pos==='DEF'){
@@ -251,6 +271,7 @@ function buildUrl(live, page){
     q.push(['defmin',p.def-tol],['defmax',p.def+tol],['attmax',10],['wingssmin',p.ssWing],['wingssmax',p.ssWing]);
   }else{
     q.push(['attssmin',p.ssAtt],['attssmax',p.ssAtt]);
+  }
   }
   q.push(['order', $(live?'orderLive':'orderDb').value]);
   let s = q.map(([k,v])=>k+'='+Math.max(0,v)).join('&');
@@ -268,7 +289,7 @@ function refresh(){
   $('weekLabel').textContent = hasWeek
     ? 'Filtrar por semana (solo DB): semanas '+Math.max(1,player.week-2)+' a '+Math.min(13,player.week+2)+' (semana '+player.week+' ±2)'
     : 'Filtrar por semana (solo DB) — requiere el formato de 9 números';
-  const ok = player && !player.missing.length && !(pos==='GK' && player.gk===undefined);
+  const ok = $('natMode').checked ? !!$('nat').value : !!(player && !player.missing.length && !(pos==='GK' && player.gk===undefined));
   for(const k of ['Db','Live']){
     const u = ok ? buildUrl(k==='Live', 1) : '';
     $('url'+k).textContent = u || '—';
@@ -282,7 +303,7 @@ function renderSummary(){
   const box = $('summary'), msg = $('parseMsg'), sk = $('skills');
   box.innerHTML = ''; sk.innerHTML = ''; sk.classList.add('hide'); msg.classList.add('hide');
   if(!player) return;
-  if(player.gk===undefined && !player.missing.length && pos==='GK'){
+  if(player.gk===undefined && !player.missing.length && pos==='GK' && !$('natMode').checked){
     msg.textContent = 'Este formato no trae keeper (gk), así que no se puede buscar un portero. Elige DEF, MID o ATT.';
     msg.classList.remove('hide');
   }
@@ -310,7 +331,7 @@ function setPos(p){
   pos = p;
   document.querySelectorAll('#posSeg button').forEach(b=>b.classList.toggle('on', b.dataset.pos===p));
   $('posHelp').textContent = '';
-  $('tolDesc').innerHTML = '<b>Criterio de búsqueda:</b> ' + POS_HELP[p];
+  $('tolDesc').innerHTML = $('natMode').checked ? '<b>Criterio de búsqueda:</b> solo país (se ignoran los datos del jugador, la posición y la semana).' : '<b>Criterio de búsqueda:</b> ' + POS_HELP[p];
   if(player) renderSummary();
   refresh();
 }
@@ -391,31 +412,46 @@ function renderStats(k){
 }
 
 // Valores del jugador buscado, alineados con las columnas de la tabla de resultados
-function playerValues(head, p){
+const norm = t => t.toLowerCase().replace(/[▼▲↑↓]/g,'').replace(/\s+/g,' ').trim();
+const HIDE_COLS = ['tact disc','pos'];
+const SKILL_COLS = ['pace','tech','pass','gk','def','pm','str'];
+
+function columnMeta(head){
+  let afterFull = false;
+  return head.map((c,i)=>{
+    const l = norm(c.text); if(l==='full') afterFull = true;
+    let cls = '';
+    if(l==='name') cls += ' c-name';
+    if(!afterFull && SKILL_COLS.includes(l)) cls += ' sk sk-'+l;
+    if(!afterFull && l==='pace') cls += ' div-l';
+    if(!afterFull && l==='str') cls += ' div-r';
+    return {i, l, cls, after: afterFull};
+  });
+}
+
+function playerValue(m, p){
   const skill = {stam:'stam',pace:'pace',tech:'tech',pass:'pass',gk:'gk',def:'def',pm:'pm',str:'str'};
   const sums = {def:'ssDef','def sides':'ssDefSd',mid:'ssMid',wing:'ssWing',att:'ssAtt','att sides':'ssAttSd'};
-  let afterFull = false;
-  return head.map(c=>{
-    const l = c.text.toLowerCase().replace(/[▼▲↑↓]/g,'').replace(/\s+/g,' ').trim();
-    if(l==='name') return p.name || 'Jugador buscado';
-    if(l==='age') return p.age;
-    if(l==='full'){ afterFull = true; return p.ssFull; }
-    const key = (afterFull ? sums : skill)[l];
-    return key ? p[key] : '';
-  });
+  if(m.l==='name') return p.name || 'Jugador buscado';
+  if(m.l==='age') return p.age;
+  if(m.l==='full') return p.ssFull;
+  const key = (m.after ? sums : skill)[m.l];
+  return key ? p[key] : '';
 }
 
 function renderResults(k){
   const d = data[k], box = $('res'+k), hid = hidden[k], bar = $('hid'+k);
+  const cols = columnMeta(d.head).filter(m=>!HIDE_COLS.includes(m.l));
   const table = document.createElement('table'); table.className = 'res';
   const thead = table.createTHead();
   const tr = thead.insertRow();
   tr.appendChild(document.createElement('th'));
-  d.head.forEach(c=>{ const th = document.createElement('th'); th.textContent = c.text; tr.appendChild(th); });
-  // Fila del jugador buscado (misma tabla, así las columnas quedan alineadas)
-  const pr = thead.insertRow();
-  pr.insertCell();
-  playerValues(d.head, d.player).forEach(v=>{ const td = pr.insertCell(); td.textContent = v===undefined ? '' : v; });
+  for(const m of cols){ const th = document.createElement('th'); th.textContent = d.head[m.i].text; th.className = m.cls; tr.appendChild(th); }
+  if(d.player && !d.player.missing.length){
+    const pr = thead.insertRow();
+    pr.insertCell();
+    for(const m of cols){ const td = pr.insertCell(); const v = playerValue(m, d.player); td.textContent = v===undefined ? '' : v; td.className = m.cls; }
+  }
   const tbody = table.createTBody();
   d.rows.forEach((r,idx)=>{
     if(hid.has(idx)) return;
@@ -424,11 +460,12 @@ function renderResults(k){
     const b = document.createElement('button'); b.className='hide-row'; b.type='button'; b.textContent='×'; b.title='Ocultar fila';
     b.addEventListener('click',()=>{ hid.add(idx); renderResults(k); });
     x.appendChild(b);
-    r.forEach(c=>{
-      const td = row.insertCell();
+    for(const m of cols){
+      const c = r[m.i] || {text:''};
+      const td = row.insertCell(); td.className = m.cls;
       if(c.href){ const l=document.createElement('a'); l.href=c.href; l.target='_blank'; l.rel='noopener'; l.textContent=c.text; td.appendChild(l); }
       else td.textContent = c.text;
-    });
+    }
   });
   box.innerHTML=''; box.appendChild(table);
   table.style.setProperty('--hh', tr.offsetHeight+'px');
@@ -482,7 +519,9 @@ async function loadPage(k, page){
 function init(){
   $('curr').innerHTML = CURRENCIES.map((c,i)=>`<option value="${i+1}">${c}</option>`).join('');
   $('curr').value = '13';
-  const saved = ['season','window','curr','extra','orderDb','orderLive','proxy'];
+  const coll = new Intl.Collator('es', {sensitivity:'base'});
+  $('nat').innerHTML = '<option value="">— elige un país —</option>' + [...COUNTRIES].sort((a,b)=>coll.compare(a[1],b[1])).map(([id,n])=>`<option value="${id}">${n}</option>`).join('');
+  const saved = ['season','window','curr','extra','orderDb','orderLive','proxy','nat'];
   try{
     const s = JSON.parse(localStorage.getItem('sokkerTransfers')||'{}');
     for(const id of saved) if(s[id]!==undefined) $(id).value = s[id];
@@ -496,6 +535,7 @@ function init(){
     renderSummary(); refresh();
   });
   $('useWeek').addEventListener('change', refresh);
+  $('natMode').addEventListener('change',()=>{ $('nat').disabled = !$('natMode').checked; setPos(pos); });
   document.querySelectorAll('#posSeg button').forEach(b=>b.addEventListener('click',()=>setPos(b.dataset.pos)));
   for(const id of saved){
     $(id).addEventListener('input',()=>{
