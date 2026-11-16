@@ -91,6 +91,9 @@
       <div><label for="window">Temporadas hacia atrás (solo DB)</label><input id="window" type="number" min="0" value="2"></div>
       <div><label for="curr">Moneda</label><select id="curr"></select></div>
     </div>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:12px;cursor:pointer;font-size:.9rem;color:var(--ink)">
+      <input type="checkbox" id="useWeek" style="width:auto"> <span id="weekLabel">Filtrar por semana (solo DB)</span>
+    </label>
     <div class="desc" id="tolDesc"></div>
     <div style="margin-top:12px">
       <label for="extra">Parámetros extra (opcional, ej. <code>countr=40&amp;formmin=8</code>)</label>
@@ -137,9 +140,11 @@
 
 <div id="results">
   <section class="card hide" id="cardResDb"><h2>Resultados — Transfers DB</h2>
-    <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button></div><div class="tablewrap" id="resDb"></div></section>
+    <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button></div>
+    <div class="skills tablewrap" id="cmpDb" style="max-height:none;margin:0 0 10px"></div><div class="tablewrap" id="resDb"></div></section>
   <section class="card hide" id="cardResLive"><h2>Resultados — Transfers Live</h2>
-    <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button></div><div class="tablewrap" id="resLive"></div></section>
+    <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button></div>
+    <div class="skills tablewrap" id="cmpLive" style="max-height:none;margin:0 0 10px"></div><div class="tablewrap" id="resLive"></div></section>
 </div>
 
 <script>
@@ -220,6 +225,9 @@ function buildUrl(live, page){
   if(!live){
     const s = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
     q.push(['ssnsfr', s-w], ['ssnsto', s]);
+    if($('useWeek').checked && player.week!==undefined){
+      q.push(['weekfr', Math.max(1, player.week-2)], ['weekto', Math.min(16, player.week+2)]);
+    }
   }
   q.push(['curr', $('curr').value], ['agemin', p.age], ['agemax', p.age]);
   if(pos==='GK'){
@@ -241,6 +249,12 @@ function buildUrl(live, page){
 }
 
 function refresh(){
+  const hasWeek = player && player.week!==undefined;
+  $('useWeek').disabled = !hasWeek;
+  if(!hasWeek) $('useWeek').checked = false;
+  $('weekLabel').textContent = hasWeek
+    ? 'Filtrar por semana (solo DB): semanas '+Math.max(1,player.week-2)+' a '+Math.min(16,player.week+2)+' (semana '+player.week+' ±2)'
+    : 'Filtrar por semana (solo DB) — requiere el formato de 9 números';
   const ok = player && !player.missing.length && !(pos==='GK' && player.gk===undefined);
   for(const k of ['Db','Live']){
     const u = ok ? buildUrl(k==='Live', 1) : '';
@@ -357,6 +371,9 @@ async function loadPage(k, page){
       for(const c of head){ const th=document.createElement('th'); th.textContent=c.text; tr.appendChild(th); }
       appendRows(table.createTBody(), rows);
       box.innerHTML=''; box.appendChild(table); card.classList.remove('hide');
+      const cmp = $('cmp'+k), src = $('skills').querySelector('table');
+      cmp.innerHTML = '';
+      if(src){ cmp.appendChild(src.cloneNode(true)); cmp.classList.remove('hide'); }
       $('pg'+k).textContent = 'Página '+page;
       st.textContent = rows.length+' filas en la página '+page+'.';
       card.scrollIntoView({behavior:'smooth', block:'start'});
@@ -381,8 +398,10 @@ function init(){
     const t = $('paste').value.trim();
     player = t ? parsePlayer(t) : null;
     if(player && !player.missing.length && player.gk>=Math.max(player.def,player.pm,player.str,player.pace,player.tech,player.pass) && player.gk>=7 && pos!=='GK') setPos('GK');
+    $('useWeek').checked = !!(player && player.week!==undefined);
     renderSummary(); refresh();
   });
+  $('useWeek').addEventListener('change', refresh);
   document.querySelectorAll('#posSeg button').forEach(b=>b.addEventListener('click',()=>setPos(b.dataset.pos)));
   for(const id of saved){
     $(id).addEventListener('input',()=>{
