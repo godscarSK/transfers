@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buscador de transferencias Sokker</title>
+<style>
+  :root{
+    --bg:#f4f6f3; --card:#fff; --ink:#1c2a22; --muted:#5f6f65; --line:#dbe3dc;
+    --accent:#1f7a4a; --accent-ink:#fff; --accent-soft:#e3f2e9; --warn:#a15c00;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#0f1713;--card:#17221c;--ink:#e6efe9;--muted:#93a79b;--line:#2a3a31;--accent:#3fb26f;--accent-ink:#06150d;--accent-soft:#1d3327;--warn:#e0a24a}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:1.5rem;margin:0 0 4px}
+  h2{font-size:1.05rem;margin:0 0 10px}
+  p.sub{margin:0 0 18px;color:var(--muted)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+  textarea,input,select{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+  textarea{min-height:150px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+  label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:3px}
+  .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button,a.btn{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:8px 14px;text-decoration:none;display:inline-block}
+  button:hover,a.btn:hover{border-color:var(--accent)}
+  button.primary,a.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{border:0;border-radius:0;border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:0}
+  .seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0}
+  .chip{background:var(--accent-soft);border-radius:999px;padding:3px 10px;font-size:.85rem}
+  .chip b{font-variant-numeric:tabular-nums}
+  .err{color:var(--warn);font-size:.9rem;margin-top:8px}
+  .url{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;word-break:break-all;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:8px 0}
+  .status{font-size:.88rem;color:var(--muted);margin-top:8px}
+  .tablewrap{overflow:auto;margin-top:10px;border:1px solid var(--line);border-radius:8px;max-height:520px}
+  table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+  th,td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:left}
+  th{position:sticky;top:0;background:var(--accent-soft)}
+  td a{color:var(--accent)}
+  .two{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(380px,1fr))}
+  @media(max-width:520px){.two{grid-template-columns:1fr}}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Buscador de transferencias Sokker</h1>
+  <p class="sub">Pega los datos de un jugador (con el botón de copiar de Sokker), elige su posición y consulta las transferencias parecidas en <em>Transfers DB</em> y <em>Transfers Live</em>.</p>
+
+  <section class="card">
+    <h2>1. Datos del jugador</h2>
+    <label for="paste">Pega aquí el texto copiado de Sokker</label>
+    <textarea id="paste" placeholder="[b][pid=40397542]Omar Lisboa[/pid][/b], age: [b]18[/b], height [b]185[/b] cm&#10;...&#10;stamina [b][5][/b] [b]average[/b], keeper [b][9][/b] [b]very good[/b]&#10;pace [b][8][/b] ..."></textarea>
+    <div id="parseMsg" class="err hide"></div>
+    <div id="summary" class="chips"></div>
+  </section>
+
+  <section class="card">
+    <h2>2. ¿Qué busco?</h2>
+    <div class="row" style="margin-bottom:12px">
+      <div class="seg" id="posSeg">
+        <button data-pos="GK" class="on">GK</button>
+        <button data-pos="DEF">DEF</button>
+        <button data-pos="MID">MID</button>
+        <button data-pos="ATT">ATT</button>
+      </div>
+      <span id="posHelp" style="color:var(--muted);font-size:.88rem"></span>
+    </div>
+    <div class="grid">
+      <div><label for="season">Temporada actual</label><input id="season" type="number" min="1" value="79"></div>
+      <div><label for="window">Temporadas hacia atrás</label><input id="window" type="number" min="0" value="2"></div>
+      <div><label for="curr">Moneda</label><select id="curr"></select></div>
+      <div><label for="tol" id="tolLabel">Tolerancia</label><input id="tol" type="number" min="0" value="1"></div>
+      <div><label for="order">Orden (order)</label><input id="order" type="number" min="0" value="1"></div>
+      <div><label for="page">Página</label><input id="page" type="number" min="1" value="1"></div>
+    </div>
+    <div style="margin-top:12px">
+      <label for="extra">Parámetros extra (opcional, ej. <code>countr=40&amp;formmin=8</code>)</label>
+      <input id="extra" placeholder="param=valor&param=valor">
+    </div>
+  </section>
+
+  <div class="two">
+    <section class="card" id="cardDb">
+      <h2>Transfers DB <span style="font-weight:400;color:var(--muted)">(historial)</span></h2>
+      <div class="url" id="urlDb">—</div>
+      <div class="row">
+        <a class="btn primary" id="openDb" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
+        <button id="loadDb">Cargar aquí</button>
+        <button id="copyDb">Copiar enlace</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="prevDb">← Pág. anterior</button>
+        <button id="nextDb">Pág. siguiente →</button>
+      </div>
+      <div class="status" id="statusDb"></div>
+      <div class="tablewrap hide" id="resDb"></div>
+    </section>
+
+    <section class="card" id="cardLive">
+      <h2>Transfers Live <span style="font-weight:400;color:var(--muted)">(en curso)</span></h2>
+      <div class="url" id="urlLive">—</div>
+      <div class="row">
+        <a class="btn primary" id="openLive" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
+        <button id="loadLive">Cargar aquí</button>
+        <button id="copyLive">Copiar enlace</button>
+      </div>
+      <div class="status" id="statusLive"></div>
+      <div class="tablewrap hide" id="resLive"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+const BASE_DB   = 'https://geston.smallhost.pl/sokker/transfers_db.php';
+const BASE_LIVE = 'https://geston.smallhost.pl/sokker/transfers_live.php';
+
+const CURRENCIES = ['€','zł','$','£','lei (România)','lei (Moldova)','R$','Ft','TL','Kč','u$s','k.$ (Colombia)','k.$ (Chile)','$U','лв.','sol','din','CHF','kr.','$MN','k.₫','KM','m','k Bs.','грн.','kr (Sverige)','kr (Ísland)','руб.','$ MN','₪','U$S','¥ (Zhōngguó)','¥ (Nippon)','Rs.','k Rp','Դրամ','C$ (Canada)','C$ (Nicaragua)','k G','E£','AU$','Bs','S$','k. ₩','₦','NZ$','k ¢','درهم','lek','ден.','RM','L','к руб.','R','ლ','฿','P','k. Fr','Q','ريال','RD$','HK$','k.¢','دج','د.ت','T','J$','د.إ','k so‘m','Sh','k.ريال'];
+
+const SKILLS = [['stam','stamina'],['pace','pace'],['tech','technique'],['pass','passing'],['gk','keeper'],['def','defender'],['pm','playmaker'],['str','striker']];
+
+// Tolerancias por defecto (las mismas del Excel)
+const POS = {
+  GK:  {tol:1, label:'Velocidad ± (pace)',      help:'Misma edad, mismo keeper, velocidad ±tol'},
+  DEF: {tol:2, label:'Def. laterales ± (def sides)', help:'Misma edad, def SS igual, def sides ±tol, striker ≤ 10'},
+  MID: {tol:1, label:'Defensa ± (defender)',    help:'Misma edad, defender ±tol, wing SS igual, striker ≤ 10'},
+  ATT: {tol:0, label:'(sin tolerancia)',        help:'Misma edad, att SS igual'}
+};
+
+const $ = id => document.getElementById(id);
+let player = null, pos = 'GK';
+const tolByPos = {GK:1, DEF:2, MID:1, ATT:0};
+
+/* ---------- Parseo del texto de Sokker ---------- */
+function parsePlayer(text){
+  const t = text.replace(/ /g,' ');
+  const age = (t.match(/age:\s*(?:\[b\])?\s*(\d+)/i)||[])[1];
+  const p = {};
+  const missing = [];
+  if(age===undefined) missing.push('age'); else p.age = +age;
+  for(const [k,word] of SKILLS){
+    const m = t.match(new RegExp('\\b'+word+'\\s*(?:\\[b\\])?\\s*\\[(\\d+)\\]','i'));
+    if(m) p[k] = +m[1]; else missing.push(k);
+  }
+  const n = t.match(/\[pid=(\d+)\]([^\[]*)\[\/pid\]/i);
+  if(n){ p.pid = n[1]; p.name = n[2].trim(); }
+  p.missing = missing;
+  if(missing.length) return p;
+  // Sum-skills (mismas fórmulas que el Excel)
+  p.ssDef   = p.def + p.pace;
+  p.ssDefSd = p.tech + p.pass + p.pm;
+  p.ssMid   = p.pace + p.tech + p.pass + p.def + p.pm;
+  p.ssWing  = p.pace + p.tech + p.pass + p.pm;
+  p.ssAtt   = p.pace + p.tech + p.str;
+  p.ssAttSd = p.pass + p.def + p.pm;
+  p.ssFull  = p.stam+p.pace+p.tech+p.pass+p.gk+p.def+p.pm+p.str;
+  return p;
+}
+
+/* ---------- Construcción de enlaces ---------- */
+function buildParams(live){
+  const p = player, tol = Math.max(0, parseInt($('tol').value)||0);
+  const q = [];
+  if(!live){
+    const s = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
+    q.push(['ssnsfr', s-w], ['ssnsto', s]);
+  }
+  q.push(['curr', $('curr').value], ['agemin', p.age], ['agemax', p.age]);
+  if(pos==='GK'){
+    q.push(['pacmin',p.pace-tol],['pacmax',p.pace+tol],['keemin',p.gk],['keemax',p.gk]);
+  }else if(pos==='DEF'){
+    q.push(['attmax',10],['defssmin',p.ssDef],['defssmax',p.ssDef],['defsdmin',p.ssDefSd-tol],['defsdmax',p.ssDefSd+tol]);
+  }else if(pos==='MID'){
+    q.push(['defmin',p.def-tol],['defmax',p.def+tol],['attmax',10],['wingssmin',p.ssWing],['wingssmax',p.ssWing]);
+  }else{
+    q.push(['attssmin',p.ssAtt],['attssmax',p.ssAtt]);
+  }
+  q.push(['order', parseInt($('order').value)||1]);
+  if(!live) q.push(['page', Math.max(1, parseInt($('page').value)||1)]);
+  let s = q.map(([k,v])=>k+'='+Math.max(0,v)).join('&');
+  const extra = $('extra').value.trim().replace(/^[?&]+/,'');
+  if(extra) s += '&' + extra;
+  return s;
+}
+
+function refresh(){
+  const ok = player && !player.missing.length;
+  for(const k of ['Db','Live']){
+    const u = ok ? (k==='Db'?BASE_DB:BASE_LIVE)+'?'+buildParams(k==='Live') : '';
+    $('url'+k).textContent = u || '—';
+    const a = $('open'+k);
+    if(u){ a.href = u; a.classList.remove('hide'); } else { a.removeAttribute('href'); }
+    for(const b of ['load','copy']) $(b+k).disabled = !ok;
+  }
+  $('prevDb').disabled = $('nextDb').disabled = !ok;
+}
+
+function renderSummary(){
+  const box = $('summary'), msg = $('parseMsg');
+  box.innerHTML = ''; msg.classList.add('hide');
+  if(!player) return;
+  if(player.missing.length){
+    msg.textContent = 'No encontré estos datos en el texto: ' + player.missing.join(', ') + '. Copia el bloque completo del jugador.';
+    msg.classList.remove('hide');
+  }
+  const chip = (l,v)=>{ if(v===undefined) return; const s=document.createElement('span'); s.className='chip'; s.innerHTML = l+' <b>'+v+'</b>'; box.appendChild(s); };
+  if(player.name) chip('Jugador', player.name.replace(/[<>&]/g,''));
+  chip('edad', player.age);
+  for(const [k] of SKILLS) chip(k, player[k]);
+  if(!player.missing.length){
+    chip('full',player.ssFull); chip('def',player.ssDef); chip('def sides',player.ssDefSd);
+    chip('mid',player.ssMid); chip('wing',player.ssWing); chip('att',player.ssAtt); chip('att sides',player.ssAttSd);
+  }
+}
+
+function setPos(p){
+  pos = p;
+  document.querySelectorAll('#posSeg button').forEach(b=>b.classList.toggle('on', b.dataset.pos===p));
+  $('tolLabel').textContent = POS[p].label;
+  $('tol').value = tolByPos[p];
+  $('tol').disabled = p==='ATT';
+  $('posHelp').textContent = POS[p].help;
+  $('page').value = 1;
+  refresh();
+}
+
+/* ---------- Carga de resultados dentro de la página ---------- */
+const PROXIES = [
+  null, // directo (solo funciona si el sitio permite CORS)
+  u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u)
+];
+
+async function fetchText(url){
+  let lastErr;
+  for(const mk of PROXIES){
+    const target = mk ? mk(url) : url;
+    try{
+      const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), 15000);
+      const r = await fetch(target, {signal:ctrl.signal}); clearTimeout(to);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const txt = await r.text();
+      if(/<table/i.test(txt)) return {txt, via: mk ? new URL(target).host : 'directo'};
+      throw new Error('sin tabla');
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error('fallo');
+}
+
+function renderTable(html, baseUrl, box){
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const table = [...doc.querySelectorAll('table')].sort((a,b)=>b.rows.length-a.rows.length)[0];
+  box.innerHTML = '';
+  if(!table || table.rows.length<2){ return 0; }
+  const out = document.createElement('table');
+  [...table.rows].forEach((tr,i)=>{
+    const r = out.insertRow();
+    [...tr.cells].forEach(c=>{
+      const el = document.createElement(i===0 || c.tagName==='TH' ? 'th':'td');
+      const a = c.querySelector('a[href]');
+      if(a){
+        try{
+          const href = new URL(a.getAttribute('href'), baseUrl).href;
+          if(/^https?:/.test(href)){
+            const l = document.createElement('a'); l.href = href; l.target='_blank'; l.rel='noopener'; l.textContent = c.textContent.trim(); el.appendChild(l);
+          } else el.textContent = c.textContent.trim();
+        }catch{ el.textContent = c.textContent.trim(); }
+      } else el.textContent = c.textContent.trim();
+      r.appendChild(el);
+    });
+  });
+  box.appendChild(out);
+  box.classList.remove('hide');
+  return table.rows.length-1;
+}
+
+async function loadHere(k){
+  const url = $('url'+k).textContent, st = $('status'+k), box = $('res'+k);
+  st.textContent = 'Consultando…'; box.classList.add('hide');
+  try{
+    const {txt, via} = await fetchText(url);
+    const n = renderTable(txt, url, box);
+    st.textContent = n ? n+' filas cargadas ('+via+').' : 'La consulta respondió, pero sin resultados.';
+  }catch(e){
+    st.textContent = 'No se pudo cargar dentro de la página (el sitio bloquea consultas desde otros dominios). Usa “Abrir en pestaña nueva”.';
+  }
+}
+
+/* ---------- Eventos ---------- */
+function init(){
+  $('curr').innerHTML = CURRENCIES.map((c,i)=>`<option value="${i+1}">${c}</option>`).join('');
+  $('curr').value = '13';
+  try{
+    const s = JSON.parse(localStorage.getItem('sokkerTransfers')||'{}');
+    for(const id of ['season','window','curr','order','extra']) if(s[id]!==undefined) $(id).value = s[id];
+  }catch{}
+
+  $('paste').addEventListener('input', ()=>{
+    const t = $('paste').value.trim();
+    player = t ? parsePlayer(t) : null;
+    if(player && !player.missing.length && player.gk>=Math.max(player.def,player.pm,player.str,player.pace,player.tech,player.pass) && player.gk>=7 && pos!=='GK') setPos('GK');
+    $('page').value = 1;
+    renderSummary(); refresh();
+  });
+  document.querySelectorAll('#posSeg button').forEach(b=>b.addEventListener('click',()=>setPos(b.dataset.pos)));
+  $('tol').addEventListener('input',()=>{ tolByPos[pos] = parseInt($('tol').value)||0; refresh(); });
+  for(const id of ['season','window','curr','order','page','extra']){
+    $(id).addEventListener('input',()=>{
+      refresh();
+      try{ const s={}; for(const i of ['season','window','curr','order','extra']) s[i]=$(i).value; localStorage.setItem('sokkerTransfers',JSON.stringify(s)); }catch{}
+    });
+  }
+  $('prevDb').addEventListener('click',()=>{ $('page').value = Math.max(1,(parseInt($('page').value)||1)-1); refresh(); if(!$('resDb').classList.contains('hide')) loadHere('Db'); });
+  $('nextDb').addEventListener('click',()=>{ $('page').value = (parseInt($('page').value)||1)+1; refresh(); if(!$('resDb').classList.contains('hide')) loadHere('Db'); });
+  for(const k of ['Db','Live']){
+    $('load'+k).addEventListener('click',()=>loadHere(k));
+    $('copy'+k).addEventListener('click',async()=>{
+      try{ await navigator.clipboard.writeText($('url'+k).textContent); $('status'+k).textContent='Enlace copiado.'; }
+      catch{ $('status'+k).textContent='No se pudo copiar; selecciona el enlace manualmente.'; }
+    });
+  }
+  setPos('GK');
+}
+init();
+</script>
+</body>
+</html>
