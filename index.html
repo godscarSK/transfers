@@ -60,8 +60,11 @@
   .stat b{font-size:1.05rem;font-variant-numeric:tabular-nums}
   .hiddenbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px;font-size:.85rem;color:var(--muted)}
   .hiddenbar button{padding:2px 10px;font-size:.85rem}
-  th .hide-col{border:0;background:transparent;padding:0 0 0 6px;margin:0;color:var(--muted);font-size:.95rem;line-height:1;cursor:pointer}
-  th .hide-col:hover{color:#c62828}
+  :root{--hl:#d9480f;--hl-soft:#fff0e3}
+  @media (prefers-color-scheme:dark){:root{--hl:#ffa94d;--hl-soft:#3a2a17}}
+  .hide-row{border:0;background:transparent;padding:0 4px;margin:0;color:var(--muted);font-size:1rem;line-height:1;cursor:pointer}
+  .hide-row:hover{color:#c62828;border:0}
+  table.res thead td{position:sticky;top:var(--hh,30px);background:var(--hl-soft);border:2px solid var(--hl);font-weight:600;text-align:left;z-index:1}
   .desc{background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:.88rem;margin-top:12px}
   .desc b{font-weight:600}
 </style>
@@ -149,12 +152,10 @@
 <div id="results">
   <section class="card hide" id="cardResDb"><h2>Resultados — Transfers DB</h2>
     <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button></div>
-    <div class="skills tablewrap" id="cmpDb" style="max-height:none;margin:0 0 10px"></div>
     <div class="stats hide" id="statsDb"></div>
     <div class="hiddenbar hide" id="hidDb"></div><div class="tablewrap" id="resDb"></div></section>
   <section class="card hide" id="cardResLive"><h2>Resultados — Transfers Live</h2>
     <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button></div>
-    <div class="skills tablewrap" id="cmpLive" style="max-height:none;margin:0 0 10px"></div>
     <div class="stats hide" id="statsLive"></div>
     <div class="hiddenbar hide" id="hidLive"></div><div class="tablewrap" id="resLive"></div></section>
 </div>
@@ -370,11 +371,12 @@ function renderStats(k){
   const pi = d.head.findIndex(c=>/price|precio/i.test(c.text));
   if(pi<0){ box.classList.add('hide'); return; }
   const vals = []; let unit = '';
-  for(const r of d.rows){
+  d.rows.forEach((r,i)=>{
+    if(hidden[k].has(i)) return;
     const t = (r[pi]||{}).text||'';
     const n = parseInt(t.replace(/[^\d]/g,''),10);
-    if(!isNaN(n)){ vals.push(n); if(!unit) unit = t.replace(/[\d\s\u00a0]/g,'').trim(); }
-  }
+    if(!isNaN(n)){ vals.push(n); if(!unit) unit = t.replace(/[\d\s ]/g,'').trim(); }
+  });
   if(!vals.length){ box.classList.add('hide'); return; }
   vals.sort((a,b)=>a-b);
   const m = vals.length>>1, med = vals.length%2 ? vals[m] : (vals[m-1]+vals[m])/2;
@@ -382,39 +384,60 @@ function renderStats(k){
   const items = [['Precio máximo',vals[vals.length-1]],['Precio promedio',avg],['Mediana',med],['Precio mínimo',vals[0]]];
   for(const [l,v] of items){
     const d1 = document.createElement('div'); d1.className='stat';
-    d1.innerHTML = '<span></span><b></b>'; d1.firstChild.textContent = l+' ('+vals.length+' jugadores)'; d1.lastChild.textContent = fmt(v)+(unit?' '+unit:'');
+    d1.innerHTML = '<span></span><b></b>'; d1.firstChild.textContent = l+' ('+vals.length+' jugador'+(vals.length>1?'es':'')+' visible'+(vals.length>1?'s':'')+')'; d1.lastChild.textContent = fmt(v)+(unit?' '+unit:'');
     box.appendChild(d1);
   }
   box.classList.remove('hide');
 }
 
+// Valores del jugador buscado, alineados con las columnas de la tabla de resultados
+function playerValues(head, p){
+  const skill = {stam:'stam',pace:'pace',tech:'tech',pass:'pass',gk:'gk',def:'def',pm:'pm',str:'str'};
+  const sums = {def:'ssDef','def sides':'ssDefSd',mid:'ssMid',wing:'ssWing',att:'ssAtt','att sides':'ssAttSd'};
+  let afterFull = false;
+  return head.map(c=>{
+    const l = c.text.toLowerCase().replace(/[▼▲↑↓]/g,'').replace(/\s+/g,' ').trim();
+    if(l==='name') return p.name || 'Jugador buscado';
+    if(l==='age') return p.age;
+    if(l==='full'){ afterFull = true; return p.ssFull; }
+    const key = (afterFull ? sums : skill)[l];
+    return key ? p[key] : '';
+  });
+}
+
 function renderResults(k){
   const d = data[k], box = $('res'+k), hid = hidden[k], bar = $('hid'+k);
-  const table = document.createElement('table');
-  const tr = table.createTHead().insertRow();
-  d.head.forEach((c,i)=>{
-    if(hid.has(i)) return;
-    const th = document.createElement('th'); th.textContent = c.text;
-    const b = document.createElement('button'); b.className='hide-col'; b.type='button'; b.textContent='×'; b.title='Ocultar columna';
-    b.addEventListener('click',()=>{ hid.add(i); renderResults(k); });
-    th.appendChild(b); tr.appendChild(th);
-  });
+  const table = document.createElement('table'); table.className = 'res';
+  const thead = table.createTHead();
+  const tr = thead.insertRow();
+  tr.appendChild(document.createElement('th'));
+  d.head.forEach(c=>{ const th = document.createElement('th'); th.textContent = c.text; tr.appendChild(th); });
+  // Fila del jugador buscado (misma tabla, así las columnas quedan alineadas)
+  const pr = thead.insertRow();
+  pr.insertCell();
+  playerValues(d.head, d.player).forEach(v=>{ const td = pr.insertCell(); td.textContent = v===undefined ? '' : v; });
   const tbody = table.createTBody();
-  for(const r of d.rows){
+  d.rows.forEach((r,idx)=>{
+    if(hid.has(idx)) return;
     const row = tbody.insertRow();
-    r.forEach((c,i)=>{
-      if(hid.has(i)) return;
+    const x = row.insertCell();
+    const b = document.createElement('button'); b.className='hide-row'; b.type='button'; b.textContent='×'; b.title='Ocultar fila';
+    b.addEventListener('click',()=>{ hid.add(idx); renderResults(k); });
+    x.appendChild(b);
+    r.forEach(c=>{
       const td = row.insertCell();
       if(c.href){ const l=document.createElement('a'); l.href=c.href; l.target='_blank'; l.rel='noopener'; l.textContent=c.text; td.appendChild(l); }
       else td.textContent = c.text;
     });
-  }
+  });
   box.innerHTML=''; box.appendChild(table);
+  table.style.setProperty('--hh', tr.offsetHeight+'px');
   bar.innerHTML = '';
   if(hid.size){
-    bar.appendChild(document.createTextNode('Columnas ocultas:'));
+    bar.appendChild(document.createTextNode('Filas ocultas:'));
     [...hid].sort((a,b)=>a-b).forEach(i=>{
-      const b = document.createElement('button'); b.type='button'; b.textContent = (d.head[i]?d.head[i].text:'col '+(i+1))+' +'; b.title='Mostrar columna';
+      const b = document.createElement('button'); b.type='button';
+      b.textContent = ((d.rows[i][0]||{}).text||'fila '+(i+1))+' +'; b.title='Mostrar fila';
       b.addEventListener('click',()=>{ hid.delete(i); renderResults(k); });
       bar.appendChild(b);
     });
@@ -443,11 +466,8 @@ async function loadPage(k, page){
       cur[k]=1; $('pg'+k).textContent='Página 1';
     }else{
       cur[k]=page; lastSig[k]=sig;
-      data[k] = {head, rows};
+      data[k] = {head, rows, player}; hidden[k].clear();
       renderResults(k); card.classList.remove('hide');
-      const cmp = $('cmp'+k), src = $('skills').querySelector('table');
-      cmp.innerHTML = '';
-      if(src){ cmp.appendChild(src.cloneNode(true)); cmp.classList.remove('hide'); }
       $('pg'+k).textContent = 'Página '+page;
       st.textContent = rows.length+' filas en la página '+page+'.';
       card.scrollIntoView({behavior:'smooth', block:'start'});
