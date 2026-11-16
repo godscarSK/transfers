@@ -47,6 +47,13 @@
   .hide{display:none}
   #results{padding:0 16px 60px}
   #results .card{margin-bottom:16px}
+  button.danger{background:#c62828;border-color:#c62828;color:#fff;font-weight:600}
+  button.danger:hover{background:#a81f1f;border-color:#a81f1f}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .skills{margin-top:12px;display:block;width:fit-content;max-width:100%}
+  .skills table{width:auto}
+  .skills th,.skills td{text-align:center;padding:5px 10px}
+  .pager{display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap}
   .desc{background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:.88rem;margin-top:12px}
   .desc b{font-weight:600}
 </style>
@@ -58,10 +65,14 @@
 
   <section class="card">
     <h2>1. Datos del jugador</h2>
-    <label for="paste">Pega aquí el texto copiado de Sokker</label>
+    <div class="row" style="justify-content:space-between;margin-bottom:3px">
+      <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker</label>
+      <button class="danger" id="clearBtn" type="button">Limpiar</button>
+    </div>
     <textarea id="paste" placeholder="[b][pid=40397542]Omar Lisboa[/pid][/b], age: [b]18[/b], height [b]185[/b] cm&#10;...&#10;stamina [b][5][/b] [b]average[/b], keeper [b][9][/b] [b]very good[/b]&#10;pace [b][8][/b] ..."></textarea>
     <div id="parseMsg" class="err hide"></div>
     <div id="summary" class="chips"></div>
+    <div id="skills" class="skills tablewrap hide" style="max-height:none"></div>
   </section>
 
   <section class="card">
@@ -97,7 +108,7 @@
       <div class="url" id="urlDb">—</div>
       <div class="row">
         <a class="btn primary" id="openDb" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
-        <button id="loadDb">Cargar aquí (todas las páginas)</button>
+        <button id="loadDb">Cargar aquí</button>
         <button id="copyDb">Copiar enlace</button>
       </div>
       <div class="status" id="statusDb"></div>
@@ -112,7 +123,7 @@
       <div class="url" id="urlLive">—</div>
       <div class="row">
         <a class="btn primary" id="openLive" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
-        <button id="loadLive">Cargar aquí (todas las páginas)</button>
+        <button id="loadLive">Cargar aquí</button>
         <button id="copyLive">Copiar enlace</button>
       </div>
       <div class="status" id="statusLive"></div>
@@ -121,8 +132,10 @@
 </main>
 
 <div id="results">
-  <section class="card hide" id="cardResDb"><h2>Resultados — Transfers DB</h2><div class="tablewrap" id="resDb"></div></section>
-  <section class="card hide" id="cardResLive"><h2>Resultados — Transfers Live</h2><div class="tablewrap" id="resLive"></div></section>
+  <section class="card hide" id="cardResDb"><h2>Resultados — Transfers DB</h2>
+    <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button></div><div class="tablewrap" id="resDb"></div></section>
+  <section class="card hide" id="cardResLive"><h2>Resultados — Transfers Live</h2>
+    <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button></div><div class="tablewrap" id="resLive"></div></section>
 </div>
 
 <script>
@@ -210,8 +223,8 @@ function refresh(){
 }
 
 function renderSummary(){
-  const box = $('summary'), msg = $('parseMsg');
-  box.innerHTML = ''; msg.classList.add('hide');
+  const box = $('summary'), msg = $('parseMsg'), sk = $('skills');
+  box.innerHTML = ''; sk.innerHTML = ''; sk.classList.add('hide'); msg.classList.add('hide');
   if(!player) return;
   if(player.missing.length){
     msg.textContent = 'No encontré estos datos en el texto: ' + player.missing.join(', ') + '. Copia el bloque completo del jugador.';
@@ -220,11 +233,16 @@ function renderSummary(){
   const chip = (l,v)=>{ if(v===undefined) return; const s=document.createElement('span'); s.className='chip'; s.innerHTML = l+' <b>'+v+'</b>'; box.appendChild(s); };
   if(player.name) chip('Jugador', player.name.replace(/[<>&]/g,''));
   chip('edad', player.age);
-  for(const [k] of SKILLS) chip(k, player[k]);
-  if(!player.missing.length){
-    chip('full',player.ssFull); chip('def',player.ssDef); chip('def sides',player.ssDefSd);
-    chip('mid',player.ssMid); chip('wing',player.ssWing); chip('att',player.ssAtt); chip('att sides',player.ssAttSd);
+  if(player.missing.length) return;
+  const cols = [['stam','stam'],['pace','pace'],['tech','tech'],['pass','pass'],['gk','gk'],['def','def'],['pm','pm'],['str','str'],
+    ['full','ssFull'],['def','ssDef'],['def sides','ssDefSd'],['mid','ssMid'],['wing','ssWing'],['att','ssAtt'],['att sides','ssAttSd']];
+  const t = document.createElement('table');
+  const hr = t.createTHead().insertRow(), br = t.createTBody().insertRow();
+  for(const [label,key] of cols){
+    const th = document.createElement('th'); th.textContent = label; hr.appendChild(th);
+    br.insertCell().textContent = player[key];
   }
+  sk.appendChild(t); sk.classList.remove('hide');
 }
 
 function setPos(p){
@@ -244,7 +262,7 @@ const PROXIES = [
 let proxyStart = 0;
 
 async function fetchText(url){
-  let lastErr;
+  const errs = [];
   for(let n=0;n<PROXIES.length;n++){
     const i = (proxyStart+n)%PROXIES.length, mk = PROXIES[i];
     const target = mk ? mk(url) : url;
@@ -256,9 +274,9 @@ async function fetchText(url){
       if(!/<table/i.test(txt)) throw new Error('sin tabla');
       proxyStart = i;
       return txt;
-    }catch(e){ lastErr = e; }
+    }catch(e){ errs.push((mk ? new URL(target).host : 'directo')+': '+(e.name==='AbortError'?'tiempo agotado':e.message)); }
   }
-  throw lastErr || new Error('fallo');
+  throw new Error(errs.join(' | '));
 }
 
 // Extrae la tabla principal: {head:[celdas], rows:[[celdas]]}; celda = {text, href}
@@ -287,37 +305,36 @@ function appendRows(tbody, rows){
   }
 }
 
-const MAX_PAGES = 40;
-async function loadAll(k){
+const cur = {Db:1, Live:1}, lastSig = {Db:null, Live:null};
+async function loadPage(k, page){
   const live = k==='Live', st = $('status'+k), box = $('res'+k), card = $('cardRes'+k);
-  const btn = $('load'+k); btn.disabled = true;
-  box.innerHTML = ''; card.classList.add('hide');
-  let table=null, tbody=null, total=0, pages=0, prevSig=null;
+  const btns = ['load','prev','next'].map(x=>$(x+k)); btns.forEach(b=>b.disabled=true);
+  st.textContent = 'Cargando página '+page+'…';
   try{
-    for(let page=1; page<=MAX_PAGES; page++){
-      st.textContent = 'Cargando página '+page+'…';
-      const url = buildUrl(live, page);
-      const {head, rows} = extractTable(await fetchText(url), url);
-      const sig = JSON.stringify(rows.map(r=>r.map(c=>c.text)));
-      if(!rows.length || sig===prevSig) break;
-      prevSig = sig;
-      if(!table){
-        table = document.createElement('table');
-        const tr = table.createTHead().insertRow();
-        for(const c of head){ const th=document.createElement('th'); th.textContent=c.text; tr.appendChild(th); }
-        tbody = table.createTBody();
-        box.appendChild(table); card.classList.remove('hide');
-        card.scrollIntoView({behavior:'smooth', block:'start'});
-      }
-      appendRows(tbody, rows);
-      total += rows.length; pages++;
+    const url = buildUrl(live, page);
+    const {head, rows} = extractTable(await fetchText(url), url);
+    const sig = JSON.stringify(rows.map(r=>r.map(c=>c.text)));
+    if(page>1 && (!rows.length || sig===lastSig[k])){
+      st.textContent = 'No hay más páginas (la '+(page-1)+' es la última).';
+    }else if(!rows.length){
+      box.innerHTML=''; card.classList.remove('hide');
+      st.textContent = 'La consulta respondió, pero sin resultados.';
+      cur[k]=1; $('pg'+k).textContent='Página 1';
+    }else{
+      cur[k]=page; lastSig[k]=sig;
+      const table = document.createElement('table');
+      const tr = table.createTHead().insertRow();
+      for(const c of head){ const th=document.createElement('th'); th.textContent=c.text; tr.appendChild(th); }
+      appendRows(table.createTBody(), rows);
+      box.innerHTML=''; box.appendChild(table); card.classList.remove('hide');
+      $('pg'+k).textContent = 'Página '+page;
+      st.textContent = rows.length+' filas en la página '+page+'.';
+      card.scrollIntoView({behavior:'smooth', block:'start'});
     }
-    st.textContent = total ? total+' filas en '+pages+' página'+(pages>1?'s':'')+'.' : 'La consulta respondió, pero sin resultados.';
   }catch(e){
-    if(total){ st.textContent = total+' filas cargadas (se interrumpió en la página '+(pages+1)+').'; }
-    else st.textContent = 'No se pudo cargar dentro de la página (el sitio bloquea consultas desde otros dominios). Usa “Abrir en pestaña nueva”.';
+    st.textContent = 'No se pudo cargar dentro de la página. Usa “Abrir en pestaña nueva”. Detalle: '+e.message;
   }
-  btn.disabled = false;
+  $('load'+k).disabled=false; $('prev'+k).disabled = cur[k]<=1; $('next'+k).disabled=false;
 }
 
 /* ---------- Eventos ---------- */
@@ -344,12 +361,17 @@ function init(){
     });
   }
   for(const k of ['Db','Live']){
-    $('load'+k).addEventListener('click',()=>loadAll(k));
+    $('load'+k).addEventListener('click',()=>{ lastSig[k]=null; loadPage(k,1); });
+    $('prev'+k).addEventListener('click',()=>loadPage(k,Math.max(1,cur[k]-1)));
+    $('next'+k).addEventListener('click',()=>loadPage(k,cur[k]+1));
     $('copy'+k).addEventListener('click',async()=>{
       try{ await navigator.clipboard.writeText($('url'+k).textContent); $('status'+k).textContent='Enlace copiado.'; }
       catch{ $('status'+k).textContent='No se pudo copiar; selecciona el enlace manualmente.'; }
     });
   }
+  $('clearBtn').addEventListener('click',()=>{
+    $('paste').value=''; player=null; renderSummary(); refresh(); $('paste').focus();
+  });
   setPos('GK');
 }
 init();
