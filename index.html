@@ -454,7 +454,7 @@ function playerValue(m, p){
   const sums = {def:'ssDef','def sides':'ssDefSd',mid:'ssMid',wing:'ssWing',att:'ssAtt','att sides':'ssAttSd'};
   if(m.l==='name') return p.name || 'Jugador buscado';
   if(m.l==='age') return p.age;
-  if(m.l==='season') return p.week!==undefined ? 'TT/'+(p.season!==undefined ? p.season+'/' : '')+p.week : '';
+  if(m.l==='season') return p.week!==undefined ? (p.season!==undefined ? p.season : 'TT')+'/'+p.week : '';
   if(m.l==='full') return p.ssFull;
   const key = (m.after ? sums : skill)[m.l];
   return key ? p[key] : '';
