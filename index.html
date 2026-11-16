@@ -66,10 +66,10 @@
   <section class="card">
     <h2>1. Datos del jugador</h2>
     <div class="row" style="justify-content:space-between;margin-bottom:3px">
-      <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker</label>
+      <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker, o los 9 números: semana edad stam pace tech pass def pm str</label>
       <button class="danger" id="clearBtn" type="button">Limpiar</button>
     </div>
-    <textarea id="paste" placeholder="[b][pid=40397542]Omar Lisboa[/pid][/b], age: [b]18[/b], height [b]185[/b] cm&#10;...&#10;stamina [b][5][/b] [b]average[/b], keeper [b][9][/b] [b]very good[/b]&#10;pace [b][8][/b] ..."></textarea>
+    <textarea id="paste" placeholder="8 19 4 12 6 5 11 4 6&#10;&#10;o el texto de Sokker:&#10;[b][pid=40397542]Omar Lisboa[/pid][/b], age: [b]18[/b], height [b]185[/b] cm&#10;...&#10;stamina [b][5][/b] [b]average[/b], keeper [b][9][/b] [b]very good[/b]&#10;pace [b][8][/b] ..."></textarea>
     <div id="parseMsg" class="err hide"></div>
     <div id="summary" class="chips"></div>
     <div id="skills" class="skills tablewrap hide" style="max-height:none"></div>
@@ -165,6 +165,15 @@ let player = null, pos = 'GK';
 /* ---------- Parseo del texto de Sokker ---------- */
 function parsePlayer(text){
   const t = text.replace(/ /g,' ');
+  // Formato compacto: semana edad stam pace tech pass def pm str (9 números, sin keeper)
+  if(/^[\d\s,;]+$/.test(t)){
+    const n = t.split(/[\s,;]+/).filter(Boolean).map(Number);
+    if(n.length===9){
+      const [week,age,stam,pace,tech,pass,def,pm,str] = n;
+      return addSums({week,age,stam,pace,tech,pass,def,pm,str,missing:[]});
+    }
+    return {missing:['9 números: semana edad stam pace tech pass def pm str (encontré '+n.length+')']};
+  }
   const age = (t.match(/age:\s*(?:\[b\])?\s*(\d+)/i)||[])[1];
   const p = {};
   const missing = [];
@@ -189,14 +198,18 @@ function parsePlayer(text){
   }
   p.missing = missing;
   if(missing.length) return p;
-  // Sum-skills (mismas fórmulas que el Excel)
+  return addSums(p);
+}
+
+// Sum-skills (mismas fórmulas que el Excel). Sin keeper (gk) el full no lo incluye.
+function addSums(p){
   p.ssDef   = p.def + p.pace;
   p.ssDefSd = p.tech + p.pass + p.pm;
   p.ssMid   = p.pace + p.tech + p.pass + p.def + p.pm;
   p.ssWing  = p.pace + p.tech + p.pass + p.pm;
   p.ssAtt   = p.pace + p.tech + p.str;
   p.ssAttSd = p.pass + p.def + p.pm;
-  p.ssFull  = p.stam+p.pace+p.tech+p.pass+p.gk+p.def+p.pm+p.str;
+  p.ssFull  = p.stam+p.pace+p.tech+p.pass+(p.gk||0)+p.def+p.pm+p.str;
   return p;
 }
 
@@ -228,7 +241,7 @@ function buildUrl(live, page){
 }
 
 function refresh(){
-  const ok = player && !player.missing.length;
+  const ok = player && !player.missing.length && !(pos==='GK' && player.gk===undefined);
   for(const k of ['Db','Live']){
     const u = ok ? buildUrl(k==='Live', 1) : '';
     $('url'+k).textContent = u || '—';
@@ -242,12 +255,17 @@ function renderSummary(){
   const box = $('summary'), msg = $('parseMsg'), sk = $('skills');
   box.innerHTML = ''; sk.innerHTML = ''; sk.classList.add('hide'); msg.classList.add('hide');
   if(!player) return;
+  if(player.gk===undefined && !player.missing.length && pos==='GK'){
+    msg.textContent = 'Este formato no trae keeper (gk), así que no se puede buscar un portero. Elige DEF, MID o ATT.';
+    msg.classList.remove('hide');
+  }
   if(player.missing.length){
     msg.textContent = 'No encontré estos datos en el texto: ' + player.missing.join(', ') + '. Copia el bloque completo del jugador.';
     msg.classList.remove('hide');
   }
   const chip = (l,v)=>{ if(v===undefined) return; const s=document.createElement('span'); s.className='chip'; s.innerHTML = l+' <b>'+v+'</b>'; box.appendChild(s); };
   if(player.name) chip('Jugador', player.name.replace(/[<>&]/g,''));
+  if(player.week!==undefined) chip('semana', player.week);
   chip('edad', player.age);
   if(player.missing.length) return;
   const cols = [['stam','stam'],['pace','pace'],['tech','tech'],['pass','pass'],['gk','gk'],['def','def'],['pm','pm'],['str','str'],
@@ -256,7 +274,7 @@ function renderSummary(){
   const hr = t.createTHead().insertRow(), br = t.createTBody().insertRow();
   for(const [label,key] of cols){
     const th = document.createElement('th'); th.textContent = label; hr.appendChild(th);
-    br.insertCell().textContent = player[key];
+    br.insertCell().textContent = player[key]===undefined ? '' : player[key];
   }
   sk.appendChild(t); sk.classList.remove('hide');
 }
@@ -266,6 +284,7 @@ function setPos(p){
   document.querySelectorAll('#posSeg button').forEach(b=>b.classList.toggle('on', b.dataset.pos===p));
   $('posHelp').textContent = '';
   $('tolDesc').innerHTML = '<b>Criterio de búsqueda:</b> ' + POS_HELP[p];
+  if(player) renderSummary();
   refresh();
 }
 
