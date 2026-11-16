@@ -37,7 +37,7 @@
   .err{color:var(--warn);font-size:.9rem;margin-top:8px}
   .url{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;word-break:break-all;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:8px 0}
   .status{font-size:.88rem;color:var(--muted);margin-top:8px}
-  .tablewrap{overflow:auto;margin-top:10px;border:1px solid var(--line);border-radius:8px;max-height:520px}
+  .tablewrap{overflow:auto;margin-top:10px;border:1px solid var(--line);border-radius:8px;max-height:75vh}
   table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
   th,td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:left}
   th{position:sticky;top:0;background:var(--accent-soft)}
@@ -45,6 +45,10 @@
   .two{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(380px,1fr))}
   @media(max-width:520px){.two{grid-template-columns:1fr}}
   .hide{display:none}
+  #results{padding:0 16px 60px}
+  #results .card{margin-bottom:16px}
+  .desc{background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:.88rem;margin-top:12px}
+  .desc b{font-weight:600}
 </style>
 </head>
 <body>
@@ -73,12 +77,10 @@
     </div>
     <div class="grid">
       <div><label for="season">Temporada actual</label><input id="season" type="number" min="1" value="79"></div>
-      <div><label for="window">Temporadas hacia atrás</label><input id="window" type="number" min="0" value="2"></div>
+      <div><label for="window">Temporadas hacia atrás (solo DB)</label><input id="window" type="number" min="0" value="2"></div>
       <div><label for="curr">Moneda</label><select id="curr"></select></div>
-      <div><label for="tol" id="tolLabel">Tolerancia</label><input id="tol" type="number" min="0" value="1"></div>
-      <div><label for="order">Orden (order)</label><input id="order" type="number" min="0" value="1"></div>
-      <div><label for="page">Página</label><input id="page" type="number" min="1" value="1"></div>
     </div>
+    <div class="desc" id="tolDesc"></div>
     <div style="margin-top:12px">
       <label for="extra">Parámetros extra (opcional, ej. <code>countr=40&amp;formmin=8</code>)</label>
       <input id="extra" placeholder="param=valor&param=valor">
@@ -86,35 +88,42 @@
   </section>
 
   <div class="two">
-    <section class="card" id="cardDb">
+    <section class="card">
       <h2>Transfers DB <span style="font-weight:400;color:var(--muted)">(historial)</span></h2>
+      <label for="orderDb">Ordenar por</label>
+      <select id="orderDb" style="margin-bottom:8px">
+        <option value="1">Precio</option><option value="2">Finalización</option><option value="3">Edad</option>
+      </select>
       <div class="url" id="urlDb">—</div>
       <div class="row">
         <a class="btn primary" id="openDb" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
-        <button id="loadDb">Cargar aquí</button>
+        <button id="loadDb">Cargar aquí (todas las páginas)</button>
         <button id="copyDb">Copiar enlace</button>
       </div>
-      <div class="row" style="margin-top:8px">
-        <button id="prevDb">← Pág. anterior</button>
-        <button id="nextDb">Pág. siguiente →</button>
-      </div>
       <div class="status" id="statusDb"></div>
-      <div class="tablewrap hide" id="resDb"></div>
     </section>
 
-    <section class="card" id="cardLive">
+    <section class="card">
       <h2>Transfers Live <span style="font-weight:400;color:var(--muted)">(en curso)</span></h2>
+      <label for="orderLive">Ordenar por</label>
+      <select id="orderLive" style="margin-bottom:8px">
+        <option value="1">Precio</option><option value="2" selected>Finalización</option><option value="3">Edad</option>
+      </select>
       <div class="url" id="urlLive">—</div>
       <div class="row">
         <a class="btn primary" id="openLive" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
-        <button id="loadLive">Cargar aquí</button>
+        <button id="loadLive">Cargar aquí (todas las páginas)</button>
         <button id="copyLive">Copiar enlace</button>
       </div>
       <div class="status" id="statusLive"></div>
-      <div class="tablewrap hide" id="resLive"></div>
     </section>
   </div>
 </main>
+
+<div id="results">
+  <section class="card hide" id="cardResDb"><h2>Resultados — Transfers DB</h2><div class="tablewrap" id="resDb"></div></section>
+  <section class="card hide" id="cardResLive"><h2>Resultados — Transfers Live</h2><div class="tablewrap" id="resLive"></div></section>
+</div>
 
 <script>
 const BASE_DB   = 'https://geston.smallhost.pl/sokker/transfers_db.php';
@@ -124,17 +133,17 @@ const CURRENCIES = ['€','zł','$','£','lei (România)','lei (Moldova)','R$','
 
 const SKILLS = [['stam','stamina'],['pace','pace'],['tech','technique'],['pass','passing'],['gk','keeper'],['def','defender'],['pm','playmaker'],['str','striker']];
 
-// Tolerancias por defecto (las mismas del Excel)
-const POS = {
-  GK:  {tol:1, label:'Velocidad ± (pace)',      help:'Misma edad, mismo keeper, velocidad ±tol'},
-  DEF: {tol:2, label:'Def. laterales ± (def sides)', help:'Misma edad, def SS igual, def sides ±tol, striker ≤ 10'},
-  MID: {tol:1, label:'Defensa ± (defender)',    help:'Misma edad, defender ±tol, wing SS igual, striker ≤ 10'},
-  ATT: {tol:0, label:'(sin tolerancia)',        help:'Misma edad, att SS igual'}
+// Tolerancias fijas (las mismas del Excel)
+const TOL = {GK:1, DEF:2, MID:1, ATT:0};
+const POS_HELP = {
+  GK:  'Portero: misma edad, mismo keeper y velocidad (pace) con tolerancia de ±1.',
+  DEF: 'Defensa: misma edad, def SS igual, def sides con tolerancia de ±2 y striker máximo 10.',
+  MID: 'Mediocampista: misma edad, defender con tolerancia de ±1, wing SS igual y striker máximo 10.',
+  ATT: 'Atacante: misma edad y att SS igual (sin tolerancia).'
 };
 
 const $ = id => document.getElementById(id);
 let player = null, pos = 'GK';
-const tolByPos = {GK:1, DEF:2, MID:1, ATT:0};
 
 /* ---------- Parseo del texto de Sokker ---------- */
 function parsePlayer(text){
@@ -163,8 +172,8 @@ function parsePlayer(text){
 }
 
 /* ---------- Construcción de enlaces ---------- */
-function buildParams(live){
-  const p = player, tol = Math.max(0, parseInt($('tol').value)||0);
+function buildUrl(live, page){
+  const p = player, tol = TOL[pos];
   const q = [];
   if(!live){
     const s = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
@@ -180,24 +189,24 @@ function buildParams(live){
   }else{
     q.push(['attssmin',p.ssAtt],['attssmax',p.ssAtt]);
   }
-  q.push(['order', parseInt($('order').value)||1]);
-  if(!live) q.push(['page', Math.max(1, parseInt($('page').value)||1)]);
+  q.push(['order', $(live?'orderLive':'orderDb').value]);
   let s = q.map(([k,v])=>k+'='+Math.max(0,v)).join('&');
+  if(live) s += '&orderasc=on';
+  s += '&page=' + page;
   const extra = $('extra').value.trim().replace(/^[?&]+/,'');
   if(extra) s += '&' + extra;
-  return s;
+  return (live?BASE_LIVE:BASE_DB)+'?'+s;
 }
 
 function refresh(){
   const ok = player && !player.missing.length;
   for(const k of ['Db','Live']){
-    const u = ok ? (k==='Db'?BASE_DB:BASE_LIVE)+'?'+buildParams(k==='Live') : '';
+    const u = ok ? buildUrl(k==='Live', 1) : '';
     $('url'+k).textContent = u || '—';
     const a = $('open'+k);
-    if(u){ a.href = u; a.classList.remove('hide'); } else { a.removeAttribute('href'); }
+    if(u) a.href = u; else a.removeAttribute('href');
     for(const b of ['load','copy']) $(b+k).disabled = !ok;
   }
-  $('prevDb').disabled = $('nextDb').disabled = !ok;
 }
 
 function renderSummary(){
@@ -221,11 +230,8 @@ function renderSummary(){
 function setPos(p){
   pos = p;
   document.querySelectorAll('#posSeg button').forEach(b=>b.classList.toggle('on', b.dataset.pos===p));
-  $('tolLabel').textContent = POS[p].label;
-  $('tol').value = tolByPos[p];
-  $('tol').disabled = p==='ATT';
-  $('posHelp').textContent = POS[p].help;
-  $('page').value = 1;
+  $('posHelp').textContent = '';
+  $('tolDesc').innerHTML = '<b>Criterio de búsqueda:</b> ' + POS_HELP[p];
   refresh();
 }
 
@@ -235,90 +241,110 @@ const PROXIES = [
   u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
   u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u)
 ];
+let proxyStart = 0;
 
 async function fetchText(url){
   let lastErr;
-  for(const mk of PROXIES){
+  for(let n=0;n<PROXIES.length;n++){
+    const i = (proxyStart+n)%PROXIES.length, mk = PROXIES[i];
     const target = mk ? mk(url) : url;
     try{
       const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), 15000);
       const r = await fetch(target, {signal:ctrl.signal}); clearTimeout(to);
       if(!r.ok) throw new Error('HTTP '+r.status);
       const txt = await r.text();
-      if(/<table/i.test(txt)) return {txt, via: mk ? new URL(target).host : 'directo'};
-      throw new Error('sin tabla');
+      if(!/<table/i.test(txt)) throw new Error('sin tabla');
+      proxyStart = i;
+      return txt;
     }catch(e){ lastErr = e; }
   }
   throw lastErr || new Error('fallo');
 }
 
-function renderTable(html, baseUrl, box){
+// Extrae la tabla principal: {head:[celdas], rows:[[celdas]]}; celda = {text, href}
+function extractTable(html, baseUrl){
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const table = [...doc.querySelectorAll('table')].sort((a,b)=>b.rows.length-a.rows.length)[0];
-  box.innerHTML = '';
-  if(!table || table.rows.length<2){ return 0; }
-  const out = document.createElement('table');
-  [...table.rows].forEach((tr,i)=>{
-    const r = out.insertRow();
-    [...tr.cells].forEach(c=>{
-      const el = document.createElement(i===0 || c.tagName==='TH' ? 'th':'td');
-      const a = c.querySelector('a[href]');
-      if(a){
-        try{
-          const href = new URL(a.getAttribute('href'), baseUrl).href;
-          if(/^https?:/.test(href)){
-            const l = document.createElement('a'); l.href = href; l.target='_blank'; l.rel='noopener'; l.textContent = c.textContent.trim(); el.appendChild(l);
-          } else el.textContent = c.textContent.trim();
-        }catch{ el.textContent = c.textContent.trim(); }
-      } else el.textContent = c.textContent.trim();
-      r.appendChild(el);
-    });
-  });
-  box.appendChild(out);
-  box.classList.remove('hide');
-  return table.rows.length-1;
+  if(!table || !table.rows.length) return {head:[], rows:[]};
+  const cell = c => {
+    let href = null;
+    const a = c.querySelector('a[href]');
+    if(a){ try{ const h = new URL(a.getAttribute('href'), baseUrl).href; if(/^https?:/.test(h)) href = h; }catch{} }
+    return {text:c.textContent.replace(/\s+/g,' ').trim(), href};
+  };
+  const all = [...table.rows].map(tr=>[...tr.cells].map(cell));
+  return {head: all[0], rows: all.slice(1).filter(r=>r.length>1)};
 }
 
-async function loadHere(k){
-  const url = $('url'+k).textContent, st = $('status'+k), box = $('res'+k);
-  st.textContent = 'Consultando…'; box.classList.add('hide');
-  try{
-    const {txt, via} = await fetchText(url);
-    const n = renderTable(txt, url, box);
-    st.textContent = n ? n+' filas cargadas ('+via+').' : 'La consulta respondió, pero sin resultados.';
-  }catch(e){
-    st.textContent = 'No se pudo cargar dentro de la página (el sitio bloquea consultas desde otros dominios). Usa “Abrir en pestaña nueva”.';
+function appendRows(tbody, rows){
+  for(const r of rows){
+    const tr = tbody.insertRow();
+    for(const c of r){
+      const td = tr.insertCell();
+      if(c.href){ const l=document.createElement('a'); l.href=c.href; l.target='_blank'; l.rel='noopener'; l.textContent=c.text; td.appendChild(l); }
+      else td.textContent = c.text;
+    }
   }
+}
+
+const MAX_PAGES = 40;
+async function loadAll(k){
+  const live = k==='Live', st = $('status'+k), box = $('res'+k), card = $('cardRes'+k);
+  const btn = $('load'+k); btn.disabled = true;
+  box.innerHTML = ''; card.classList.add('hide');
+  let table=null, tbody=null, total=0, pages=0, prevSig=null;
+  try{
+    for(let page=1; page<=MAX_PAGES; page++){
+      st.textContent = 'Cargando página '+page+'…';
+      const url = buildUrl(live, page);
+      const {head, rows} = extractTable(await fetchText(url), url);
+      const sig = JSON.stringify(rows.map(r=>r.map(c=>c.text)));
+      if(!rows.length || sig===prevSig) break;
+      prevSig = sig;
+      if(!table){
+        table = document.createElement('table');
+        const tr = table.createTHead().insertRow();
+        for(const c of head){ const th=document.createElement('th'); th.textContent=c.text; tr.appendChild(th); }
+        tbody = table.createTBody();
+        box.appendChild(table); card.classList.remove('hide');
+        card.scrollIntoView({behavior:'smooth', block:'start'});
+      }
+      appendRows(tbody, rows);
+      total += rows.length; pages++;
+    }
+    st.textContent = total ? total+' filas en '+pages+' página'+(pages>1?'s':'')+'.' : 'La consulta respondió, pero sin resultados.';
+  }catch(e){
+    if(total){ st.textContent = total+' filas cargadas (se interrumpió en la página '+(pages+1)+').'; }
+    else st.textContent = 'No se pudo cargar dentro de la página (el sitio bloquea consultas desde otros dominios). Usa “Abrir en pestaña nueva”.';
+  }
+  btn.disabled = false;
 }
 
 /* ---------- Eventos ---------- */
 function init(){
   $('curr').innerHTML = CURRENCIES.map((c,i)=>`<option value="${i+1}">${c}</option>`).join('');
   $('curr').value = '13';
+  const saved = ['season','window','curr','extra','orderDb','orderLive'];
   try{
     const s = JSON.parse(localStorage.getItem('sokkerTransfers')||'{}');
-    for(const id of ['season','window','curr','order','extra']) if(s[id]!==undefined) $(id).value = s[id];
+    for(const id of saved) if(s[id]!==undefined) $(id).value = s[id];
   }catch{}
 
   $('paste').addEventListener('input', ()=>{
     const t = $('paste').value.trim();
     player = t ? parsePlayer(t) : null;
     if(player && !player.missing.length && player.gk>=Math.max(player.def,player.pm,player.str,player.pace,player.tech,player.pass) && player.gk>=7 && pos!=='GK') setPos('GK');
-    $('page').value = 1;
     renderSummary(); refresh();
   });
   document.querySelectorAll('#posSeg button').forEach(b=>b.addEventListener('click',()=>setPos(b.dataset.pos)));
-  $('tol').addEventListener('input',()=>{ tolByPos[pos] = parseInt($('tol').value)||0; refresh(); });
-  for(const id of ['season','window','curr','order','page','extra']){
+  for(const id of saved){
     $(id).addEventListener('input',()=>{
       refresh();
-      try{ const s={}; for(const i of ['season','window','curr','order','extra']) s[i]=$(i).value; localStorage.setItem('sokkerTransfers',JSON.stringify(s)); }catch{}
+      try{ const s={}; for(const i of saved) s[i]=$(i).value; localStorage.setItem('sokkerTransfers',JSON.stringify(s)); }catch{}
     });
   }
-  $('prevDb').addEventListener('click',()=>{ $('page').value = Math.max(1,(parseInt($('page').value)||1)-1); refresh(); if(!$('resDb').classList.contains('hide')) loadHere('Db'); });
-  $('nextDb').addEventListener('click',()=>{ $('page').value = (parseInt($('page').value)||1)+1; refresh(); if(!$('resDb').classList.contains('hide')) loadHere('Db'); });
   for(const k of ['Db','Live']){
-    $('load'+k).addEventListener('click',()=>loadHere(k));
+    $('load'+k).addEventListener('click',()=>loadAll(k));
     $('copy'+k).addEventListener('click',async()=>{
       try{ await navigator.clipboard.writeText($('url'+k).textContent); $('status'+k).textContent='Enlace copiado.'; }
       catch{ $('status'+k).textContent='No se pudo copiar; selecciona el enlace manualmente.'; }
