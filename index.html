@@ -102,6 +102,13 @@
   table.res thead td.num{background:var(--hl-soft);z-index:3}
   #results table.res thead th:not(.num){cursor:pointer;user-select:none}
   #results table.res thead th:not(.num):hover{filter:brightness(.93)}
+  button.orange{background:#f08c00;border-color:#d97a00;color:#201300;font-weight:700}
+  button.orange:hover{background:#ffa01f;border-color:#b86500}
+  @media (prefers-color-scheme:dark){button.orange{background:#ffa94d;border-color:#ffc078}}
+  button.icon{padding:8px 10px;line-height:0}
+  button.icon svg{width:18px;height:18px}
+  .posq{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .posq small{color:var(--muted)}
   .csvmsg{font-size:.85rem;color:var(--muted)}
   .hide-row{border:0;background:transparent;padding:0 4px;margin:0;color:var(--muted);font-size:1rem;line-height:1;cursor:pointer}
   .hide-row:hover{color:#c62828;border:0}
@@ -200,8 +207,15 @@
       <div class="url" id="urlDb">—</div>
       <div class="row">
         <a class="btn primary" id="openDb" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
-        <button id="loadDb">Cargar aquí</button>
-        <button id="copyDb">Copiar enlace</button>
+        <button class="orange" id="loadDb">Cargar aquí</button>
+        <button class="icon" id="copyDb" type="button" title="Copiar enlace" aria-label="Copiar enlace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+      </div>
+      <div class="posq"><small>Buscar como:</small>
+        <div class="seg">
+          <button type="button" data-pos="DEF">DEF</button>
+          <button type="button" data-pos="MID">MID</button>
+          <button type="button" data-pos="ATT">ATT</button>
+        </div>
       </div>
       <div class="status" id="statusDb"></div>
     </section>
@@ -215,8 +229,15 @@
       <div class="url" id="urlLive">—</div>
       <div class="row">
         <a class="btn primary" id="openLive" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
-        <button id="loadLive">Cargar aquí</button>
-        <button id="copyLive">Copiar enlace</button>
+        <button class="orange" id="loadLive">Cargar aquí</button>
+        <button class="icon" id="copyLive" type="button" title="Copiar enlace" aria-label="Copiar enlace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+      </div>
+      <div class="posq"><small>Buscar como:</small>
+        <div class="seg">
+          <button type="button" data-pos="DEF">DEF</button>
+          <button type="button" data-pos="MID">MID</button>
+          <button type="button" data-pos="ATT">ATT</button>
+        </div>
       </div>
       <div class="status" id="statusLive"></div>
     </section>
@@ -226,12 +247,12 @@
 <div id="results">
   <section class="card sec-db hide" id="cardResDb"><h2>RESULTADOS — TRANSFERS DB</h2>
     <div class="lastreq" id="lastReqDb"></div>
-    <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button><span style="flex:1"></span><span class="csvmsg" id="csvMsgDb"></span><button class="danger" id="csvDb" type="button" title="Copiar la tabla (sin filas ocultas) como CSV">CSV</button></div>
+    <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button><span style="flex:1"></span><span class="csvmsg" id="csvMsgDb"></span><button id="upDb" type="button" title="Subir al Paso 1" aria-label="Subir al Paso 1" style="font-weight:800;font-size:1.05rem;padding:5px 12px">↑</button><button class="danger" id="csvDb" type="button" title="Copiar la tabla (sin filas ocultas) como CSV">CSV</button></div>
     <div class="stats hide" id="statsDb"></div>
     <div class="hiddenbar hide" id="hidDb"></div><div class="tablewrap" id="resDb"></div><div class="nomatch hide" id="noMatchDb">NO HAY COINCIDENCIAS</div></section>
   <section class="card sec-live hide" id="cardResLive"><h2>RESULTADOS — TRANSFERS LIVE</h2>
     <div class="lastreq" id="lastReqLive"></div>
-    <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button><span style="flex:1"></span><span class="csvmsg" id="csvMsgLive"></span><button class="danger" id="csvLive" type="button" title="Copiar la tabla (sin filas ocultas) como CSV">CSV</button></div>
+    <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button><span style="flex:1"></span><span class="csvmsg" id="csvMsgLive"></span><button id="upLive" type="button" title="Subir al Paso 1" aria-label="Subir al Paso 1" style="font-weight:800;font-size:1.05rem;padding:5px 12px">↑</button><button class="danger" id="csvLive" type="button" title="Copiar la tabla (sin filas ocultas) como CSV">CSV</button></div>
     <div class="stats hide" id="statsLive"></div>
     <div class="hiddenbar hide" id="hidLive"></div><div class="tablewrap" id="resLive"></div><div class="nomatch hide" id="noMatchLive">NO HAY COINCIDENCIAS</div></section>
 </div>
@@ -301,6 +322,8 @@ function parsePlayer(text){
   }
   const n = t.match(/\[pid=(\d+)\]([^\[]*)\[\/pid\]/i);
   if(n){ p.pid = n[1]; p.name = n[2].trim(); }
+  const fm = t.match(/\bform\s*(?:\[b\])?\s*\[(\d+)\]/i);   // "form [b][18][/b]"
+  if(fm) p.form = +fm[1];
   // Respaldo independiente del idioma: Sokker entrega siempre los valores en el mismo orden
   // (form, disciplina táctica, stamina, keeper, pace, defender, technique, playmaker, passing, striker)
   if(missing.length){
@@ -309,6 +332,7 @@ function parsePlayer(text){
     if(nums.length>=10 && ageM){
       const order = ['stam','gk','pace','def','tech','pm','pass','str'];
       p.age = +ageM[1];
+      if(p.form===undefined) p.form = nums[0];   // el primer valor es la forma, en cualquier idioma
       order.forEach((k,i)=>p[k]=nums[i+2]);
       missing.length = 0;
     }
@@ -446,7 +470,7 @@ function renderSummary(){
 
 function setPos(p){
   pos = p;
-  document.querySelectorAll('#posSeg button').forEach(b=>b.classList.toggle('on', b.dataset.pos===p));
+  document.querySelectorAll('#posSeg button, .posq button').forEach(b=>b.classList.toggle('on', b.dataset.pos===p));
   $('posHelp').textContent = '';
   $('typeMsg').classList.add('hide');
   $('tolDesc').innerHTML = '<b>Criterio de búsqueda:</b> ' + POS_HELP[p];
@@ -577,6 +601,7 @@ function playerValue(m, p){
   const sums = {def:'ssDef','def sides':'ssDefSd',mid:'ssMid',wing:'ssWing',att:'ssAtt','att sides':'ssAttSd'};
   if(m.l==='name') return p.name || 'Jugador buscado';
   if(m.l==='age') return p.age;
+  if(m.l==='form') return p.form;
   if(m.l==='season') return p.week!==undefined ? (p.season!==undefined ? p.season : 'TT')+'/'+p.week : '';
   if(m.l==='full') return p.ssFull;
   const key = (m.after ? sums : skill)[m.l];
@@ -890,7 +915,9 @@ function init(){
     if(weekAuto){ $('weekIn').value=''; weekAuto=false; }
     onPaste(true); $('paste').focus();
   });
+  document.querySelectorAll('.posq button').forEach(b=>b.addEventListener('click',()=>setPos(b.dataset.pos)));
   for(const k of ['Db','Live']){
+    $('up'+k).addEventListener('click',()=>document.querySelector('.sec-1').scrollIntoView({behavior:'smooth', block:'start'}));
     $('csv'+k).addEventListener('click', async ()=>{
       const r = buildCsv(k), m = $('csvMsg'+k);
       if(!r || !r.rows){ m.textContent = 'No hay filas para copiar.'; return; }
