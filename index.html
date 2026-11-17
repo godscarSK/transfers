@@ -89,17 +89,19 @@
   .sitem{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
   .sitem small{color:var(--muted);display:block}
   .sitem button{padding:4px 10px;font-size:.85rem}
-  .tgl{display:inline-flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.04em;border:2px solid transparent;border-radius:10px;padding:10px 16px}
-  .tgl.adv{background:#ffd43b;color:#1c1c1c;border-color:#f08c00}
-  .tgl.adv:hover{border-color:#c25e00;background:#ffe066}
-  .tgl.sav{background:#12b886;color:#fff;border-color:#0b7a5a}
-  .tgl.sav:hover{border-color:#08513b;background:#0fa876}
+  .tgl{display:inline-flex;align-items:center;gap:8px;font-weight:700;border:1px solid transparent;border-radius:10px;padding:10px 16px}
+  .tgl.adv{background:#d9bf7a;color:#2b2410;border-color:#b79a4c}
+  .tgl.adv:hover{background:#cfb468;border-color:#9c8239}
+  .tgl.sav{background:#4a9583;color:#fff;border-color:#3a7767}
+  .tgl.sav:hover{background:#42887a;border-color:#2f6356}
   .tgl[aria-expanded=true]{box-shadow:0 0 0 3px var(--accent-soft)}
   .panel{margin-top:14px;padding:14px;border:1px dashed var(--line);border-radius:10px}
   table.res .num{position:sticky;left:0;z-index:2;white-space:nowrap}
   table.res tbody td.num{background:var(--card);color:var(--muted);font-weight:600}
   table.res thead th.num{background:var(--accent-soft);z-index:4}
   table.res thead td.num{background:var(--hl-soft);z-index:3}
+  #results table.res thead th:not(.num){cursor:pointer;user-select:none}
+  #results table.res thead th:not(.num):hover{filter:brightness(.93)}
   .csvmsg{font-size:.85rem;color:var(--muted)}
   .hide-row{border:0;background:transparent;padding:0 4px;margin:0;color:var(--muted);font-size:1rem;line-height:1;cursor:pointer}
   .hide-row:hover{color:#c62828;border:0}
@@ -157,8 +159,8 @@
     </div>
     <div class="desc" id="tolDesc"></div>
     <div class="row" style="margin-top:16px">
-      <button class="tgl adv" id="tglAdv" type="button" aria-expanded="false" aria-controls="advPanel">▸ ⚙ CONFIGURACIÓN AVANZADA</button>
-      <button class="tgl sav" id="tglSaved" type="button" aria-expanded="false" aria-controls="savedPanel">▸ 💾 BÚSQUEDAS GUARDADAS</button>
+      <button class="tgl adv" id="tglAdv" type="button" aria-expanded="false" aria-controls="advPanel">▸ ⚙ Configuración Avanzada</button>
+      <button class="tgl sav" id="tglSaved" type="button" aria-expanded="false" aria-controls="savedPanel">▸ 💾 Búsquedas Guardadas</button>
     </div>
 
     <div class="panel hide" id="advPanel">
@@ -470,7 +472,7 @@ async function fetchText(url){
       return txt;
     }catch(e){ if(e instanceof NoTable) throw e; errs.push(name+': '+(e.name==='AbortError'?'tiempo agotado':e.message)); }
   }
-  if(!proxy) errs.push('(configura la dirección de tu proxy en CONFIGURACIÓN AVANZADA)');
+  if(!proxy) errs.push('(configura la dirección de tu proxy en Configuración Avanzada)');
   throw new Error(errs.join(' | '));
 }
 
@@ -501,6 +503,29 @@ function appendRows(tbody, rows){
 }
 
 const data = {Db:null, Live:null}, hidden = {Db:new Set(), Live:new Set()};
+const sortState = {Db:null, Live:null};   // {col, dir:'desc'|'asc'} o null = orden original
+
+function numVal(t){
+  const m = t.match(/^(\d+)\s*\/\s*(\d+)$/);            // temporada/semana: 78/4
+  if(m) return +m[1]*100 + +m[2];
+  const n = t.replace(/[\s\u00a0]/g,'').match(/^-?\d+(?:[.,]\d+)?/);   // 1 000 000 k.$
+  return n ? parseFloat(n[0].replace(',','.')) : null;
+}
+// Orden de las filas (índices de d.rows). El jugador consultado no participa: vive en el encabezado.
+function rowOrder(k){
+  const d = data[k], idx = d.rows.map((_,i)=>i), st = sortState[k];
+  if(!st) return idx;
+  const vals = d.rows.map(r=>(r[st.col]||{}).text||'');
+  const nums = vals.map(numVal);
+  const numeric = vals.every((v,i)=>v==='' || nums[i]!==null);
+  const dir = st.dir==='asc' ? 1 : -1;
+  return idx.sort((a,b)=>{
+    const ea = vals[a]==='', eb = vals[b]==='';
+    if(ea || eb) return ea===eb ? a-b : (ea ? 1 : -1);      // vacíos siempre al final
+    const c = numeric ? nums[a]-nums[b] : vals[a].localeCompare(vals[b],'es',{sensitivity:'base',numeric:true});
+    return c ? c*dir : a-b;
+  });
+}
 
 const fmt = n => Math.round(n).toLocaleString('es-CL');
 function renderStats(k){
@@ -575,7 +600,18 @@ function renderResults(k){
   const thead = table.createTHead();
   const tr = thead.insertRow();
   { const th0 = document.createElement('th'); th0.className = 'num'; th0.textContent = '#'; tr.appendChild(th0); }
-  for(const m of cols){ const th = document.createElement('th'); th.textContent = d.head[m.i].text; th.className = m.cls; tr.appendChild(th); }
+  const st = sortState[k];
+  for(const m of cols){
+    const th = document.createElement('th'); th.textContent = d.head[m.i].text; th.className = m.cls;
+    if(st && st.col===m.i){ const ar = document.createElement('span'); ar.textContent = st.dir==='desc' ? ' ▼' : ' ▲'; th.appendChild(ar); }
+    th.title = 'Ordenar: clic = mayor a menor, otro clic = menor a mayor, otro clic = orden original';
+    th.addEventListener('click',()=>{
+      const cur = sortState[k];
+      sortState[k] = !cur || cur.col!==m.i ? {col:m.i, dir:'desc'} : cur.dir==='desc' ? {col:m.i, dir:'asc'} : null;
+      renderResults(k);
+    });
+    tr.appendChild(th);
+  }
   if(d.player && !d.player.missing.length){
     const pr = thead.insertRow();
     pr.insertCell().className = 'num';
@@ -583,7 +619,8 @@ function renderResults(k){
   }
   const tbody = table.createTBody();
   let n = 0;
-  d.rows.forEach((r,idx)=>{
+  rowOrder(k).forEach(idx=>{
+    const r = d.rows[idx];
     if(hid.has(idx)) return;
     n++;
     const row = tbody.insertRow();
@@ -626,7 +663,7 @@ const hhmm = () => new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:
 function showNoMatch(k){
   const prev = data[k];
   data[k] = {head: prev && prev.head.length ? prev.head : DEFAULT_HEAD, rows: [], player, mode: modeNow()};
-  hidden[k].clear();
+  hidden[k].clear(); sortState[k] = null;
   renderResults(k);
   $('cardRes'+k).classList.remove('hide');
   $('noMatch'+k).classList.remove('hide');
@@ -652,7 +689,7 @@ async function loadPage(k, page){
     }else{
       $('noMatch'+k).classList.add('hide');
       cur[k]=page; lastSig[k]=sig;
-      data[k] = {head, rows, player, mode: modeNow()}; hidden[k].clear();
+      data[k] = {head, rows, player, mode: modeNow()}; hidden[k].clear(); sortState[k] = null;
       renderResults(k); card.classList.remove('hide');
       $('pg'+k).textContent = 'Página '+page;
       st.textContent = rows.length+' filas en la página '+page+'.';
@@ -678,7 +715,7 @@ function buildCsv(k){
   const lines = [['#', ...cols.map(m=>d.head[m.i].text.replace(/[▼▲↑↓]/g,'').trim())]];
   if(d.player && !d.player.missing.length) lines.push(['', ...cols.map(m=>{ const v = playerValue(m, d.player); return v===undefined ? '' : v; })]);
   let n = 0;
-  d.rows.forEach((r,idx)=>{ if(hidden[k].has(idx)) return; n++; lines.push([n, ...cols.map(m=>(r[m.i]||{}).text||'')]); });
+  rowOrder(k).forEach(idx=>{ const r = d.rows[idx]; if(hidden[k].has(idx)) return; n++; lines.push([n, ...cols.map(m=>(r[m.i]||{}).text||'')]); });
   return {text: lines.map(l=>l.map(csvCell).join(',')).join('\n'), rows: n};
 }
 async function copyText(t){
@@ -860,7 +897,7 @@ function init(){
       m.textContent = (await copyText(r.text)) ? 'CSV copiado ('+r.rows+' fila'+(r.rows>1?'s':'')+').' : 'No se pudo copiar.';
     });
   }
-  for(const [b,p,icon,txt] of [['tglAdv','advPanel','⚙','CONFIGURACIÓN AVANZADA'],['tglSaved','savedPanel','💾','BÚSQUEDAS GUARDADAS']]){
+  for(const [b,p,icon,txt] of [['tglAdv','advPanel','⚙','Configuración Avanzada'],['tglSaved','savedPanel','💾','Búsquedas Guardadas']]){
     $(b).addEventListener('click',()=>{
       const open = $(p).classList.toggle('hide') === false;
       $(b).setAttribute('aria-expanded', open); $(b).textContent = (open?'▾ ':'▸ ')+icon+' '+txt;
