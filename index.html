@@ -89,6 +89,18 @@
   .sitem{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
   .sitem small{color:var(--muted);display:block}
   .sitem button{padding:4px 10px;font-size:.85rem}
+  .tgl{display:inline-flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.04em;border:2px solid transparent;border-radius:10px;padding:10px 16px}
+  .tgl.adv{background:#ffd43b;color:#1c1c1c;border-color:#f08c00}
+  .tgl.adv:hover{border-color:#c25e00;background:#ffe066}
+  .tgl.sav{background:#12b886;color:#fff;border-color:#0b7a5a}
+  .tgl.sav:hover{border-color:#08513b;background:#0fa876}
+  .tgl[aria-expanded=true]{box-shadow:0 0 0 3px var(--accent-soft)}
+  .panel{margin-top:14px;padding:14px;border:1px dashed var(--line);border-radius:10px}
+  table.res .num{position:sticky;left:0;z-index:2;white-space:nowrap}
+  table.res tbody td.num{background:var(--card);color:var(--muted);font-weight:600}
+  table.res thead th.num{background:var(--accent-soft);z-index:4}
+  table.res thead td.num{background:var(--hl-soft);z-index:3}
+  .csvmsg{font-size:.85rem;color:var(--muted)}
   .hide-row{border:0;background:transparent;padding:0 4px;margin:0;color:var(--muted);font-size:1rem;line-height:1;cursor:pointer}
   .hide-row:hover{color:#c62828;border:0}
   table.res thead td{position:sticky;top:var(--hh,30px);background:var(--hl-soft);border:2px solid var(--hl);font-weight:600;z-index:1}
@@ -104,7 +116,7 @@
   <section class="card sec-1">
     <h2>PASO 1 - IMPORTAR DATOS</h2>
     <div class="row" style="justify-content:space-between;margin-bottom:3px">
-      <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker, o NOMBRE temporada semana edad stam pace tech pass def pm str (+ PID opcional)</label>
+      <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker, o NOMBRE temporada semana edad stam pace tech pass def pm str (+ PID opcional), o solo un PID</label>
       <button class="danger" id="clearBtn" type="button">Limpiar</button>
     </div>
     <textarea id="paste" placeholder="CAYO ANDAUR 74 2 21 5 13 10 6 13 8 4 38870317&#10;&#10;o el texto de Sokker:&#10;[b][pid=40397542]Omar Lisboa[/pid][/b], age: [b]18[/b], height [b]185[/b] cm&#10;...&#10;stamina [b][5][/b] [b]average[/b], keeper [b][9][/b] [b]very good[/b]&#10;pace [b][8][/b] ..."></textarea>
@@ -144,17 +156,24 @@
       <select id="nat" style="max-width:300px"></select>
     </div>
     <div class="desc" id="tolDesc"></div>
-    <div style="margin-top:12px">
-      <label for="extra">Parámetros extra (opcional, ej. <code>countr=40&amp;formmin=8</code>)</label>
-      <input id="extra" placeholder="param=valor&param=valor">
-    </div>
-    <div style="margin-top:12px">
-      <label for="proxy">Dirección de tu proxy (Cloudflare Worker, necesario para “Cargar aquí”)</label>
-      <input id="proxy" placeholder="https://mi-proxy.tuusuario.workers.dev">
+    <div class="row" style="margin-top:16px">
+      <button class="tgl adv" id="tglAdv" type="button" aria-expanded="false" aria-controls="advPanel">▸ ⚙ CONFIGURACIÓN AVANZADA</button>
+      <button class="tgl sav" id="tglSaved" type="button" aria-expanded="false" aria-controls="savedPanel">▸ 💾 BÚSQUEDAS GUARDADAS</button>
     </div>
 
-    <div class="saved">
-      <h3>BÚSQUEDAS GUARDADAS</h3>
+    <div class="panel hide" id="advPanel">
+      <div>
+        <label for="extra">Parámetros extra (opcional, ej. <code>countr=40&amp;formmin=8</code>)</label>
+        <input id="extra" placeholder="param=valor&param=valor">
+      </div>
+      <div style="margin-top:12px">
+        <label for="proxy">Dirección de tu proxy (Cloudflare Worker, necesario para “Cargar aquí”)</label>
+        <input id="proxy" placeholder="https://mi-proxy.tuusuario.workers.dev">
+      </div>
+    </div>
+
+    <div class="panel hide" id="savedPanel">
+      <p class="status" style="margin:0 0 10px">Guarda los ajustes de los Pasos 2 y 3 (el Paso 1 no se guarda). Quedan en este dispositivo; usa Exportar e Importar para llevarlas a otro.</p>
       <div class="row">
         <input id="saveName" placeholder="Nombre (opcional)" style="max-width:260px" maxlength="80">
         <button class="primary" id="saveBtn" type="button">Guardar búsqueda actual</button>
@@ -205,12 +224,12 @@
 <div id="results">
   <section class="card sec-db hide" id="cardResDb"><h2>RESULTADOS — TRANSFERS DB</h2>
     <div class="lastreq" id="lastReqDb"></div>
-    <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button></div>
+    <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button><span style="flex:1"></span><span class="csvmsg" id="csvMsgDb"></span><button class="danger" id="csvDb" type="button" title="Copiar la tabla (sin filas ocultas) como CSV">CSV</button></div>
     <div class="stats hide" id="statsDb"></div>
     <div class="hiddenbar hide" id="hidDb"></div><div class="tablewrap" id="resDb"></div><div class="nomatch hide" id="noMatchDb">NO HAY COINCIDENCIAS</div></section>
   <section class="card sec-live hide" id="cardResLive"><h2>RESULTADOS — TRANSFERS LIVE</h2>
     <div class="lastreq" id="lastReqLive"></div>
-    <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button></div>
+    <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button><span style="flex:1"></span><span class="csvmsg" id="csvMsgLive"></span><button class="danger" id="csvLive" type="button" title="Copiar la tabla (sin filas ocultas) como CSV">CSV</button></div>
     <div class="stats hide" id="statsLive"></div>
     <div class="hiddenbar hide" id="hidLive"></div><div class="tablewrap" id="resLive"></div><div class="nomatch hide" id="noMatchLive">NO HAY COINCIDENCIAS</div></section>
 </div>
@@ -242,6 +261,9 @@ let player = null, pos = 'GK';
 /* ---------- Parseo del texto de Sokker ---------- */
 function parsePlayer(text){
   const t = text.replace(/ /g,' ');
+  // Un único número (o "pid=NÚMERO") se asume como PID
+  const only = t.trim().match(/^(?:pid[=:]?\s*)?(\d+)$/i);
+  if(only) return {pid: only[1], onlyPid: true, missing: ['datos completos del jugador']};
   // Formato compacto: [NOMBRE] [temporada] semana edad stam pace tech pass def pm str
   if(!t.includes('[')){
     let pid;
@@ -384,6 +406,12 @@ function renderSummary(){
   const box = $('summary'), msg = $('parseMsg'), sk = $('skills');
   box.innerHTML = ''; sk.innerHTML = ''; sk.classList.add('hide'); msg.classList.add('hide');
   if(!player) return;
+  if(player.onlyPid){
+    const c = document.createElement('span'); c.className='chip'; c.innerHTML = 'PID <b>'+player.pid.replace(/[^\d]/g,'')+'</b>'; box.appendChild(c);
+    msg.textContent = 'Se ingresó solo un PID: está disponible la búsqueda por PID (las demás necesitan los datos completos del jugador).';
+    msg.classList.remove('hide');
+    return;
+  }
   if(player.gk===undefined && !player.missing.length && pos==='GK'){
     msg.textContent = 'Este formato no trae keeper (gk), así que no se puede buscar un portero. Elige DEF, MID o ATT.';
     msg.classList.remove('hide');
@@ -442,7 +470,7 @@ async function fetchText(url){
       return txt;
     }catch(e){ if(e instanceof NoTable) throw e; errs.push(name+': '+(e.name==='AbortError'?'tiempo agotado':e.message)); }
   }
-  if(!proxy) errs.push('(configura la dirección de tu proxy)');
+  if(!proxy) errs.push('(configura la dirección de tu proxy en CONFIGURACIÓN AVANZADA)');
   throw new Error(errs.join(' | '));
 }
 
@@ -530,30 +558,37 @@ function playerValue(m, p){
   return key ? p[key] : '';
 }
 
-function renderResults(k){
-  const d = data[k], box = $('res'+k), hid = hidden[k], bar = $('hid'+k);
+function visibleCols(d){
   const SUMS = ['def','def sides','mid','wing','att','att sides'];
   const SHOW = {DEF:['def','def sides'], MID:['mid','wing'], ATT:['att','att sides'], GK:[]};
-  const cols = columnMeta(d.head).filter(m=>{
+  return columnMeta(d.head).filter(m=>{
     if(HIDE_COLS.includes(m.l)) return false;
     if(m.after && SUMS.includes(m.l) && d.mode) return SHOW[d.mode].includes(m.l);
     return true;
   });
+}
+
+function renderResults(k){
+  const d = data[k], box = $('res'+k), hid = hidden[k], bar = $('hid'+k);
+  const cols = visibleCols(d);
   const table = document.createElement('table'); table.className = 'res';
   const thead = table.createTHead();
   const tr = thead.insertRow();
-  tr.appendChild(document.createElement('th'));
+  { const th0 = document.createElement('th'); th0.className = 'num'; th0.textContent = '#'; tr.appendChild(th0); }
   for(const m of cols){ const th = document.createElement('th'); th.textContent = d.head[m.i].text; th.className = m.cls; tr.appendChild(th); }
   if(d.player && !d.player.missing.length){
     const pr = thead.insertRow();
-    pr.insertCell();
+    pr.insertCell().className = 'num';
     for(const m of cols){ const td = pr.insertCell(); const v = playerValue(m, d.player); td.textContent = v===undefined ? '' : v; td.className = m.cls; }
   }
   const tbody = table.createTBody();
+  let n = 0;
   d.rows.forEach((r,idx)=>{
     if(hid.has(idx)) return;
+    n++;
     const row = tbody.insertRow();
-    const x = row.insertCell();
+    const x = row.insertCell(); x.className = 'num';
+    x.appendChild(document.createTextNode(n+' '));
     const b = document.createElement('button'); b.className='hide-row'; b.type='button'; b.textContent='×'; b.title='Ocultar fila';
     b.addEventListener('click',()=>{ hid.add(idx); renderResults(k); });
     x.appendChild(b);
@@ -634,6 +669,28 @@ async function loadPage(k, page){
   $('load'+k).disabled=false; $('prev'+k).disabled = cur[k]<=1; $('next'+k).disabled = noMore;
 }
 
+// CSV de la tabla visible (sin filas ocultas), con la misma numeración que se ve en pantalla
+const csvCell = v => { v = String(v==null ? '' : v); return /[",;\n\r]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+function buildCsv(k){
+  const d = data[k];
+  if(!d) return null;
+  const cols = visibleCols(d);
+  const lines = [['#', ...cols.map(m=>d.head[m.i].text.replace(/[▼▲↑↓]/g,'').trim())]];
+  if(d.player && !d.player.missing.length) lines.push(['', ...cols.map(m=>{ const v = playerValue(m, d.player); return v===undefined ? '' : v; })]);
+  let n = 0;
+  d.rows.forEach((r,idx)=>{ if(hidden[k].has(idx)) return; n++; lines.push([n, ...cols.map(m=>(r[m.i]||{}).text||'')]); });
+  return {text: lines.map(l=>l.map(csvCell).join(',')).join('\n'), rows: n};
+}
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); return true; }
+  catch{
+    const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select(); let ok = false;
+    try{ ok = document.execCommand('copy'); }catch{}
+    ta.remove(); return ok;
+  }
+}
+
 // Resaltar una fila al tocarla; tocarla de nuevo o tocar fuera quita el resaltado
 document.addEventListener('click', ev=>{
   const row = ev.target.closest('#results table.res tbody tr');
@@ -659,7 +716,6 @@ function cleanSearch(o){
     id: str(o.id,40) || newId(),
     name: str(o.name,80).trim() || 'Búsqueda',
     savedAt: Number.isFinite(+o.savedAt) ? +o.savedAt : Date.now(),
-    paste: str(o.paste,5000),
     type: TYPES.includes(o.type) ? o.type : 'GK',
     season: num(o.season,1,9999,'79'),
     window: num(o.window,0,99,'2'),
@@ -673,7 +729,7 @@ function cleanSearch(o){
 }
 
 function currentState(){
-  return {paste:$('paste').value, type:pos, season:$('season').value, window:$('window').value, curr:$('curr').value,
+  return {type:pos, season:$('season').value, window:$('window').value, curr:$('curr').value,
     week:$('weekIn').value, nat:$('nat').value, orderDb:$('orderDb').value, orderLive:$('orderLive').value, extra:$('extra').value};
 }
 
@@ -701,8 +757,9 @@ function renderSaved(){
 
 function saveCurrent(){
   const st = currentState();
-  const label = player && player.name ? player.name : (pos==='PAIS' ? ((COUNTRIES.find(c=>String(c[0])===st.nat)||[])[1] || 'País') : 'Búsqueda');
-  const entry = cleanSearch({...st, id:newId(), savedAt:Date.now(), name: $('saveName').value.trim() || label+' · '+TYPE_LABEL[pos]});
+  const natName = (COUNTRIES.find(c=>String(c[0])===st.nat)||[])[1];
+  const auto = TYPE_LABEL[pos] + (pos==='PAIS' && natName ? ' · '+natName : '') + ' · temp. '+st.season;
+  const entry = cleanSearch({...st, id:newId(), savedAt:Date.now(), name: $('saveName').value.trim() || auto});
   searches.unshift(entry);
   $('saveName').value = '';
   $('savedMsg').textContent = storeSearches() ? 'Búsqueda guardada en este dispositivo.' : 'No se pudo guardar en este navegador (almacenamiento bloqueado).';
@@ -744,6 +801,7 @@ function onPaste(fromLoad){
   const t = $('paste').value.trim();
   player = t ? parsePlayer(t) : null;
   if(!fromLoad && player && !player.missing.length && ['DEF','MID','ATT'].includes(pos) && player.gk>=Math.max(player.def,player.pm,player.str,player.pace,player.tech,player.pass) && player.gk>=7) setPos('GK');
+  if(!fromLoad && player && player.onlyPid && pos!=='PID') setPos('PID');
   // Si el Paso 1 trae semana, se coloca automáticamente en el filtro de semana
   if(!fromLoad && player && player.week!==undefined){ $('weekIn').value = player.week; weekAuto = true; }
   else if(!fromLoad && weekAuto){ $('weekIn').value = ''; weekAuto = false; }  // la semana puesta automáticamente no se arrastra a otro jugador
@@ -751,7 +809,6 @@ function onPaste(fromLoad){
 }
 
 function applyState(st){
-  $('paste').value = st.paste; onPaste(true);
   for(const id of ['season','window','curr','nat','orderDb','orderLive','extra']) $(id).value = st[id];
   $('weekIn').value = st.week; weekAuto = false;
   saveSettings();
@@ -796,6 +853,19 @@ function init(){
     if(weekAuto){ $('weekIn').value=''; weekAuto=false; }
     onPaste(true); $('paste').focus();
   });
+  for(const k of ['Db','Live']){
+    $('csv'+k).addEventListener('click', async ()=>{
+      const r = buildCsv(k), m = $('csvMsg'+k);
+      if(!r || !r.rows){ m.textContent = 'No hay filas para copiar.'; return; }
+      m.textContent = (await copyText(r.text)) ? 'CSV copiado ('+r.rows+' fila'+(r.rows>1?'s':'')+').' : 'No se pudo copiar.';
+    });
+  }
+  for(const [b,p,icon,txt] of [['tglAdv','advPanel','⚙','CONFIGURACIÓN AVANZADA'],['tglSaved','savedPanel','💾','BÚSQUEDAS GUARDADAS']]){
+    $(b).addEventListener('click',()=>{
+      const open = $(p).classList.toggle('hide') === false;
+      $(b).setAttribute('aria-expanded', open); $(b).textContent = (open?'▾ ':'▸ ')+icon+' '+txt;
+    });
+  }
   $('saveBtn').addEventListener('click', saveCurrent);
   $('exportBtn').addEventListener('click', exportSearches);
   $('importBtn').addEventListener('click', ()=>$('importFile').click());
