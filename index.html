@@ -92,8 +92,8 @@
   .tgl{display:inline-flex;align-items:center;gap:8px;font-weight:700;border:1px solid transparent;border-radius:10px;padding:10px 16px}
   .tgl.adv{background:#d9bf7a;color:#2b2410;border-color:#b79a4c}
   .tgl.adv:hover{background:#cfb468;border-color:#9c8239}
-  .tgl.sav{background:#4a9583;color:#fff;border-color:#3a7767}
-  .tgl.sav:hover{background:#42887a;border-color:#2f6356}
+  .tgl.sav{background:#d9bf7a;color:#2b2410;border-color:#b79a4c}
+  .tgl.sav:hover{background:#cfb468;border-color:#9c8239}
   .tgl[aria-expanded=true]{box-shadow:0 0 0 3px var(--accent-soft)}
   .panel{margin-top:14px;padding:14px;border:1px dashed var(--line);border-radius:10px}
   table.res .num{position:sticky;left:0;z-index:2;white-space:nowrap}
@@ -102,9 +102,10 @@
   table.res thead td.num{background:var(--hl-soft);z-index:3}
   #results table.res thead th:not(.num){cursor:pointer;user-select:none}
   #results table.res thead th:not(.num):hover{filter:brightness(.93)}
-  button.orange{background:#f08c00;border-color:#d97a00;color:#201300;font-weight:700}
-  button.orange:hover{background:#ffa01f;border-color:#b86500}
-  @media (prefers-color-scheme:dark){button.orange{background:#ffa94d;border-color:#ffc078}}
+  button.arrow{font-weight:800;font-size:1.6rem;line-height:1;padding:4px 18px}
+  button.orange,a.btn.orange{background:#f08c00;border-color:#d97a00;color:#201300;font-weight:700}
+  button.orange:hover,a.btn.orange:hover{background:#ffa01f;border-color:#b86500}
+  @media (prefers-color-scheme:dark){button.orange,a.btn.orange{background:#ffa94d;border-color:#ffc078}}
   button.icon{padding:8px 10px;line-height:0}
   button.icon svg{width:18px;height:18px}
   .posq{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
@@ -126,7 +127,7 @@
     <h2>PASO 1 - IMPORTAR DATOS</h2>
     <div class="row" style="justify-content:space-between;margin-bottom:3px">
       <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker, o NOMBRE temporada semana edad stam pace tech pass def pm str (+ PID opcional), o solo un PID</label>
-      <button class="danger" id="clearBtn" type="button">Limpiar</button>
+      <span class="row" style="gap:8px"><button class="arrow" id="downBtn" type="button" title="Bajar al Paso 3" aria-label="Bajar al Paso 3">↓</button><button class="danger" id="clearBtn" type="button">Limpiar</button></span>
     </div>
     <textarea id="paste" placeholder="CAYO ANDAUR 74 2 21 5 13 10 6 13 8 4 38870317&#10;&#10;o el texto de Sokker:&#10;[b][pid=40397542]Omar Lisboa[/pid][/b], age: [b]18[/b], height [b]185[/b] cm&#10;...&#10;stamina [b][5][/b] [b]average[/b], keeper [b][9][/b] [b]very good[/b]&#10;pace [b][8][/b] ..."></textarea>
     <div id="parseMsg" class="err hide"></div>
@@ -206,7 +207,7 @@
       </select>
       <div class="url" id="urlDb">—</div>
       <div class="row">
-        <a class="btn primary" id="openDb" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
+        <a class="btn orange" id="openDb" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
         <button class="orange" id="loadDb">Cargar aquí</button>
         <button class="icon" id="copyDb" type="button" title="Copiar enlace" aria-label="Copiar enlace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
       </div>
@@ -228,7 +229,7 @@
       </select>
       <div class="url" id="urlLive">—</div>
       <div class="row">
-        <a class="btn primary" id="openLive" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
+        <a class="btn orange" id="openLive" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
         <button class="orange" id="loadLive">Cargar aquí</button>
         <button class="icon" id="copyLive" type="button" title="Copiar enlace" aria-label="Copiar enlace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
       </div>
@@ -247,12 +248,12 @@
 <div id="results">
   <section class="card sec-db hide" id="cardResDb"><h2>RESULTADOS — TRANSFERS DB</h2>
     <div class="lastreq" id="lastReqDb"></div>
-    <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button><span style="flex:1"></span><span class="csvmsg" id="csvMsgDb"></span><button id="upDb" type="button" title="Subir al Paso 1" aria-label="Subir al Paso 1" style="font-weight:800;font-size:1.05rem;padding:5px 12px">↑</button><button class="danger" id="csvDb" type="button" title="Copiar la tabla (sin filas ocultas) como CSV">CSV</button></div>
+    <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button><span style="flex:1"></span><span class="csvmsg" id="csvMsgDb"></span><button class="arrow" id="upDb" type="button" title="Subir al Paso 1" aria-label="Subir al Paso 1">↑</button><button class="danger" id="csvDb" type="button" title="Copiar la tabla (sin filas ocultas) como CSV">CSV</button></div>
     <div class="stats hide" id="statsDb"></div>
     <div class="hiddenbar hide" id="hidDb"></div><div class="tablewrap" id="resDb"></div><div class="nomatch hide" id="noMatchDb">NO HAY COINCIDENCIAS</div></section>
   <section class="card sec-live hide" id="cardResLive"><h2>RESULTADOS — TRANSFERS LIVE</h2>
     <div class="lastreq" id="lastReqLive"></div>
-    <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button><span style="flex:1"></span><span class="csvmsg" id="csvMsgLive"></span><button id="upLive" type="button" title="Subir al Paso 1" aria-label="Subir al Paso 1" style="font-weight:800;font-size:1.05rem;padding:5px 12px">↑</button><button class="danger" id="csvLive" type="button" title="Copiar la tabla (sin filas ocultas) como CSV">CSV</button></div>
+    <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button><span style="flex:1"></span><span class="csvmsg" id="csvMsgLive"></span><button class="arrow" id="upLive" type="button" title="Subir al Paso 1" aria-label="Subir al Paso 1">↑</button><button class="danger" id="csvLive" type="button" title="Copiar la tabla (sin filas ocultas) como CSV">CSV</button></div>
     <div class="stats hide" id="statsLive"></div>
     <div class="hiddenbar hide" id="hidLive"></div><div class="tablewrap" id="resLive"></div><div class="nomatch hide" id="noMatchLive">NO HAY COINCIDENCIAS</div></section>
 </div>
@@ -599,7 +600,7 @@ function columnMeta(head){
 function playerValue(m, p){
   const skill = {stam:'stam',pace:'pace',tech:'tech',pass:'pass',gk:'gk',def:'def',pm:'pm',str:'str'};
   const sums = {def:'ssDef','def sides':'ssDefSd',mid:'ssMid',wing:'ssWing',att:'ssAtt','att sides':'ssAttSd'};
-  if(m.l==='name') return p.name || 'Jugador buscado';
+  if(m.l==='name') return (p.name || 'Jugador buscado').toLocaleUpperCase('es');
   if(m.l==='age') return p.age;
   if(m.l==='form') return p.form;
   if(m.l==='season') return p.week!==undefined ? (p.season!==undefined ? p.season : 'TT')+'/'+p.week : '';
@@ -916,6 +917,7 @@ function init(){
     onPaste(true); $('paste').focus();
   });
   document.querySelectorAll('.posq button').forEach(b=>b.addEventListener('click',()=>setPos(b.dataset.pos)));
+  $('downBtn').addEventListener('click',()=>document.querySelector('.sec-3').scrollIntoView({behavior:'smooth', block:'start'}));
   for(const k of ['Db','Live']){
     $('up'+k).addEventListener('click',()=>document.querySelector('.sec-1').scrollIntoView({behavior:'smooth', block:'start'}));
     $('csv'+k).addEventListener('click', async ()=>{
