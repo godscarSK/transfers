@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Buscador de transferencias Sokker</title>
+<title>TRANSFERENCIAS SOKKER</title>
 <style>
   :root{
     --bg:#f4f6f3; --card:#fff; --ink:#1c2a22; --muted:#5f6f65; --line:#dbe3dc;
@@ -31,7 +31,7 @@
   .seg button{border:0;border-radius:0;border-right:1px solid var(--line)}
   .seg button:last-child{border-right:0}
   .seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
-  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;justify-content:center}
   .chip{background:var(--accent-soft);border-radius:999px;padding:3px 10px;font-size:.85rem}
   .chip b{font-variant-numeric:tabular-nums}
   .err{color:var(--warn);font-size:.9rem;margin-top:8px}
@@ -62,9 +62,10 @@
   .hiddenbar button{padding:2px 10px;font-size:.85rem}
   :root{--hl:#d9480f;--hl-soft:#fff0e3}
   @media (prefers-color-scheme:dark){:root{--hl:#ffa94d;--hl-soft:#3a2a17}}
-  :root{--b1:#2f6fdb;--b2:#8e44ad;--bdb:#1f9d6b;--blive:#d6336c}
-  @media (prefers-color-scheme:dark){:root{--b1:#6aa3ff;--b2:#c08be0;--bdb:#4cd09a;--blive:#ff7aa8}}
+  :root{--b1:#2f6fdb;--b2:#8e44ad;--bdb:#f08c00;--blive:#f08c00;--sel:#cfe8ff}
+  @media (prefers-color-scheme:dark){:root{--b1:#6aa3ff;--b2:#c08be0;--bdb:#ffa94d;--blive:#ffa94d;--sel:#24445f}}
   .card.sec-1{border:2px solid var(--b1)} .card.sec-2{border:2px solid var(--b2)}
+  .card.sec-3{border:2px solid var(--bdb)}
   .card.sec-db{border:2px solid var(--bdb)} .card.sec-live{border:2px solid var(--blive)}
   :root{--zebra:#eef5f0;--c-pace:#1f5fd1;--c-tech:#7b3fc4;--c-pass:#a67c00;--c-gk:#8b5a2b;--c-def:#e8590c;--c-pm:#d62828;--c-str:#6b7280}
   @media (prefers-color-scheme:dark){:root{--zebra:#1d2b23;--c-pace:#6aa3ff;--c-tech:#b894ff;--c-pass:#f2c230;--c-gk:#c99a6b;--c-def:#ff922b;--c-pm:#ff6b6b;--c-str:#aab2bd}}
@@ -76,6 +77,12 @@
   table.res .sk-gk{color:var(--c-gk)} table.res .sk-def{color:var(--c-def)} table.res .sk-pm{color:var(--c-pm)} table.res .sk-str{color:var(--c-str)}
   table.res .div-l{border-left:3px solid var(--muted)}
   table.res .div-r{border-right:3px solid var(--muted)}
+  table.res tbody tr.sel td{background:var(--sel);font-weight:600}
+  table.res tbody tr{cursor:pointer}
+  #results table.res th{text-transform:uppercase}
+  .lastreq{font-size:.85rem;color:var(--muted);margin:-4px 0 10px}
+  .nomatch{color:#d32f2f;text-align:center;font-weight:700;margin-top:12px;letter-spacing:.03em}
+  @media (prefers-color-scheme:dark){.nomatch{color:#ff6b6b}}
   .hide-row{border:0;background:transparent;padding:0 4px;margin:0;color:var(--muted);font-size:1rem;line-height:1;cursor:pointer}
   .hide-row:hover{color:#c62828;border:0}
   table.res thead td{position:sticky;top:var(--hh,30px);background:var(--hl-soft);border:2px solid var(--hl);font-weight:600;z-index:1}
@@ -85,11 +92,11 @@
 </head>
 <body>
 <main>
-  <h1>Buscador de transferencias Sokker</h1>
+  <h1>TRANSFERENCIAS SOKKER</h1>
   <p class="sub">Pega los datos de un jugador (con el botón de copiar de Sokker), elige su posición y consulta las transferencias parecidas en <em>Transfers DB</em> y <em>Transfers Live</em>.</p>
 
   <section class="card sec-1">
-    <h2>1. Datos del jugador</h2>
+    <h2>PASO 1 - IMPORTAR DATOS</h2>
     <div class="row" style="justify-content:space-between;margin-bottom:3px">
       <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker, o NOMBRE temporada semana edad stam pace tech pass def pm str</label>
       <button class="danger" id="clearBtn" type="button">Limpiar</button>
@@ -101,7 +108,7 @@
   </section>
 
   <section class="card sec-2">
-    <h2>2. ¿Qué busco?</h2>
+    <h2>PASO 2 - DEFINIR BÚSQUEDA</h2>
     <div class="row" style="margin-bottom:12px">
       <div class="seg" id="posSeg">
         <button data-pos="GK" class="on">GK</button>
@@ -135,6 +142,8 @@
       <input id="proxy" placeholder="https://mi-proxy.tuusuario.workers.dev">
     </div>
   </section>
+
+  <section class="card sec-3"><h2 style="margin:0">PASO 3 - MOSTRAR RESULTADOS</h2></section>
 
   <div class="two">
     <section class="card sec-db">
@@ -170,14 +179,16 @@
 </main>
 
 <div id="results">
-  <section class="card sec-db hide" id="cardResDb"><h2>Resultados — Transfers DB</h2>
+  <section class="card sec-db hide" id="cardResDb"><h2>RESULTADOS — TRANSFERS DB</h2>
+    <div class="lastreq" id="lastReqDb"></div>
     <div class="pager"><button id="prevDb">← Atrás</button><b id="pgDb">Página 1</b><button id="nextDb">Siguiente →</button></div>
     <div class="stats hide" id="statsDb"></div>
-    <div class="hiddenbar hide" id="hidDb"></div><div class="tablewrap" id="resDb"></div></section>
-  <section class="card sec-live hide" id="cardResLive"><h2>Resultados — Transfers Live</h2>
+    <div class="hiddenbar hide" id="hidDb"></div><div class="tablewrap" id="resDb"></div><div class="nomatch hide" id="noMatchDb">NO HAY COINCIDENCIAS</div></section>
+  <section class="card sec-live hide" id="cardResLive"><h2>RESULTADOS — TRANSFERS LIVE</h2>
+    <div class="lastreq" id="lastReqLive"></div>
     <div class="pager"><button id="prevLive">← Atrás</button><b id="pgLive">Página 1</b><button id="nextLive">Siguiente →</button></div>
     <div class="stats hide" id="statsLive"></div>
-    <div class="hiddenbar hide" id="hidLive"></div><div class="tablewrap" id="resLive"></div></section>
+    <div class="hiddenbar hide" id="hidLive"></div><div class="tablewrap" id="resLive"></div><div class="nomatch hide" id="noMatchLive">NO HAY COINCIDENCIAS</div></section>
 </div>
 
 <script>
@@ -191,12 +202,12 @@ const COUNTRIES = [[89,"Al Maghrib"],[105,"al-Jazā’ir"],[71,"Andorra"],[19,"A
 const SKILLS = [['stam','stamina'],['pace','pace'],['tech','technique'],['pass','passing'],['gk','keeper'],['def','defender'],['pm','playmaker'],['str','striker']];
 
 // Tolerancias fijas (las mismas del Excel)
-const TOL = {GK:1, DEF:2, MID:1, ATT:0};
+const TOL = {GK:1, DEF:2, MID:1, ATT:3};
 const POS_HELP = {
   GK:  'Portero: misma edad, mismo keeper y velocidad (pace) con tolerancia de ±1.',
   DEF: 'Defensa: misma edad, def SS igual, def sides con tolerancia de ±2 y striker máximo 10.',
   MID: 'Mediocampista: misma edad, defender con tolerancia de ±1, wing SS igual y striker máximo 10.',
-  ATT: 'Atacante: misma edad y att SS igual (sin tolerancia).'
+  ATT: 'Atacante: misma edad, att SS igual y att sides con tolerancia de ±3.'
 };
 
 const $ = id => document.getElementById(id);
@@ -284,7 +295,7 @@ function buildUrl(live, page){
   }else if(pos==='MID'){
     q.push(['defmin',p.def-tol],['defmax',p.def+tol],['attmax',10],['wingssmin',p.ssWing],['wingssmax',p.ssWing]);
   }else{
-    q.push(['attssmin',p.ssAtt],['attssmax',p.ssAtt]);
+    q.push(['attssmin',p.ssAtt],['attssmax',p.ssAtt],['attsdmin',p.ssAttSd-tol],['attsdmax',p.ssAttSd+tol]);
   }
   }
   q.push(['order', $(live?'orderLive':'orderDb').value]);
@@ -327,9 +338,9 @@ function renderSummary(){
   }
   const chip = (l,v)=>{ if(v===undefined) return; const s=document.createElement('span'); s.className='chip'; s.innerHTML = l+' <b>'+v+'</b>'; box.appendChild(s); };
   if(player.name) chip('Jugador', player.name.replace(/[<>&]/g,''));
+  chip('edad', player.age);
   if(player.season!==undefined) chip('temporada', player.season);
   if(player.week!==undefined) chip('semana', player.week);
-  chip('edad', player.age);
   if(player.missing.length) return;
   const cols = [['stam','stam'],['pace','pace'],['tech','tech'],['pass','pass'],['gk','gk'],['def','def'],['pm','pm'],['str','str'],
     ['full','ssFull'],['def','ssDef'],['def sides','ssDefSd'],['mid','ssMid'],['wing','ssWing'],['att','ssAtt'],['att sides','ssAttSd']];
@@ -356,6 +367,7 @@ function setPos(p){
 }
 
 /* ---------- Carga de resultados dentro de la página ---------- */
+class NoTable extends Error {}
 async function fetchText(url){
   const proxy = $('proxy').value.trim().replace(/\/+$/,'');
   const attempts = [];
@@ -368,9 +380,9 @@ async function fetchText(url){
       const r = await fetch(target, {signal:ctrl.signal}); clearTimeout(to);
       if(!r.ok) throw new Error('HTTP '+r.status);
       const txt = await r.text();
-      if(!/<table/i.test(txt)) throw new Error('la respuesta no contiene tabla');
+      if(!/<table/i.test(txt)) throw new NoTable('la respuesta no contiene tabla');
       return txt;
-    }catch(e){ errs.push(name+': '+(e.name==='AbortError'?'tiempo agotado':e.message)); }
+    }catch(e){ if(e instanceof NoTable) throw e; errs.push(name+': '+(e.name==='AbortError'?'tiempo agotado':e.message)); }
   }
   if(!proxy) errs.push('(configura la dirección de tu proxy)');
   throw new Error(errs.join(' | '));
@@ -514,10 +526,28 @@ function renderResults(k){
 }
 
 const cur = {Db:1, Live:1}, lastSig = {Db:null, Live:null};
+const DEFAULT_HEAD = ['name','age','price','season','stam','pace','tech','pass','gk','def','pm','str','form','tact disc','pos','full','def','def sides','mid','wing','att','att sides'].map(text=>({text,href:null}));
+const hhmm = () => new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',hour12:false});
+
+// Sin coincidencias: se limpian los datos y queda solo el encabezado + la fila del jugador consultado
+function showNoMatch(k){
+  const prev = data[k];
+  data[k] = {head: prev && prev.head.length ? prev.head : DEFAULT_HEAD, rows: [], player, mode: $('natMode').checked ? null : pos};
+  hidden[k].clear();
+  renderResults(k);
+  $('cardRes'+k).classList.remove('hide');
+  $('noMatch'+k).classList.remove('hide');
+  $('cardRes'+k).scrollIntoView({behavior:'smooth', block:'start'});
+  cur[k]=1; lastSig[k]=null; $('pg'+k).textContent='Página 1';
+  $('status'+k).textContent = 'Sin coincidencias.';
+}
+
 async function loadPage(k, page){
-  const live = k==='Live', st = $('status'+k), box = $('res'+k), card = $('cardRes'+k);
+  const live = k==='Live', st = $('status'+k), card = $('cardRes'+k);
   const btns = ['load','prev','next'].map(x=>$(x+k)); btns.forEach(b=>b.disabled=true);
   st.textContent = 'Cargando página '+page+'…';
+  $('lastReq'+k).textContent = 'Última Solicitud: '+hhmm();
+  let noMore = false;
   try{
     const url = buildUrl(live, page);
     const {head, rows} = extractTable(await fetchText(url), url);
@@ -525,10 +555,9 @@ async function loadPage(k, page){
     if(page>1 && (!rows.length || sig===lastSig[k])){
       st.textContent = 'No hay más páginas (la '+(page-1)+' es la última).';
     }else if(!rows.length){
-      box.innerHTML=''; card.classList.remove('hide');
-      st.textContent = 'La consulta respondió, pero sin resultados.';
-      cur[k]=1; $('pg'+k).textContent='Página 1';
+      showNoMatch(k); noMore = true;
     }else{
+      $('noMatch'+k).classList.add('hide');
       cur[k]=page; lastSig[k]=sig;
       data[k] = {head, rows, player, mode: $('natMode').checked ? null : pos}; hidden[k].clear();
       renderResults(k); card.classList.remove('hide');
@@ -537,10 +566,23 @@ async function loadPage(k, page){
       card.scrollIntoView({behavior:'smooth', block:'start'});
     }
   }catch(e){
-    st.textContent = 'No se pudo cargar dentro de la página. Usa “Abrir en pestaña nueva”. Detalle: '+e.message;
+    if(e instanceof NoTable){
+      if(page===1){ showNoMatch(k); noMore = true; }
+      else st.textContent = 'No hay más páginas (la '+(page-1)+' es la última).';
+    }else{
+      st.textContent = 'No se pudo cargar dentro de la página. Usa “Abrir en pestaña nueva”. Detalle: '+e.message;
+    }
   }
-  $('load'+k).disabled=false; $('prev'+k).disabled = cur[k]<=1; $('next'+k).disabled=false;
+  $('load'+k).disabled=false; $('prev'+k).disabled = cur[k]<=1; $('next'+k).disabled = noMore;
 }
+
+// Resaltar una fila al tocarla; tocarla de nuevo o tocar fuera quita el resaltado
+document.addEventListener('click', ev=>{
+  const row = ev.target.closest('#results table.res tbody tr');
+  const prev = document.querySelector('#results table.res tbody tr.sel');
+  if(prev) prev.classList.remove('sel');
+  if(row && row!==prev) row.classList.add('sel');
+});
 
 /* ---------- Eventos ---------- */
 function init(){
