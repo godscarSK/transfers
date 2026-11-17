@@ -83,6 +83,12 @@
   .lastreq{font-size:.85rem;color:var(--muted);margin:-4px 0 10px}
   .nomatch{color:#d32f2f;text-align:center;font-weight:700;margin-top:12px;letter-spacing:.03em}
   @media (prefers-color-scheme:dark){.nomatch{color:#ff6b6b}}
+  .seg button.locked{opacity:.55}
+  .saved{margin-top:18px;border-top:1px dashed var(--line);padding-top:14px}
+  .saved h3{font-size:.95rem;margin:0 0 8px}
+  .sitem{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .sitem small{color:var(--muted);display:block}
+  .sitem button{padding:4px 10px;font-size:.85rem}
   .hide-row{border:0;background:transparent;padding:0 4px;margin:0;color:var(--muted);font-size:1rem;line-height:1;cursor:pointer}
   .hide-row:hover{color:#c62828;border:0}
   table.res thead td{position:sticky;top:var(--hh,30px);background:var(--hl-soft);border:2px solid var(--hl);font-weight:600;z-index:1}
@@ -98,10 +104,10 @@
   <section class="card sec-1">
     <h2>PASO 1 - IMPORTAR DATOS</h2>
     <div class="row" style="justify-content:space-between;margin-bottom:3px">
-      <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker, o NOMBRE temporada semana edad stam pace tech pass def pm str</label>
+      <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker, o NOMBRE temporada semana edad stam pace tech pass def pm str (+ PID opcional)</label>
       <button class="danger" id="clearBtn" type="button">Limpiar</button>
     </div>
-    <textarea id="paste" placeholder="CAYO ANDAUR 74 2 21 5 13 10 6 13 8 4&#10;&#10;o el texto de Sokker:&#10;[b][pid=40397542]Omar Lisboa[/pid][/b], age: [b]18[/b], height [b]185[/b] cm&#10;...&#10;stamina [b][5][/b] [b]average[/b], keeper [b][9][/b] [b]very good[/b]&#10;pace [b][8][/b] ..."></textarea>
+    <textarea id="paste" placeholder="CAYO ANDAUR 74 2 21 5 13 10 6 13 8 4 38870317&#10;&#10;o el texto de Sokker:&#10;[b][pid=40397542]Omar Lisboa[/pid][/b], age: [b]18[/b], height [b]185[/b] cm&#10;...&#10;stamina [b][5][/b] [b]average[/b], keeper [b][9][/b] [b]very good[/b]&#10;pace [b][8][/b] ..."></textarea>
     <div id="parseMsg" class="err hide"></div>
     <div id="summary" class="chips"></div>
     <div id="skills" class="skills tablewrap hide" style="max-height:none"></div>
@@ -115,22 +121,27 @@
         <button data-pos="DEF">DEF</button>
         <button data-pos="MID">MID</button>
         <button data-pos="ATT">ATT</button>
+        <button data-pos="PID" id="pidBtn">PID</button>
+        <button data-pos="PAIS">PAÍS</button>
       </div>
       <span id="posHelp" style="color:var(--muted);font-size:.88rem"></span>
     </div>
+    <div id="typeMsg" class="err hide" style="margin:-4px 0 12px"></div>
     <div class="grid">
       <div><label for="season">Temporada actual</label><input id="season" type="number" min="1" value="79"></div>
       <div><label for="window">Temporadas hacia atrás (solo DB)</label><input id="window" type="number" min="0" value="2"></div>
       <div><label for="curr">Moneda</label><select id="curr"></select></div>
     </div>
-    <label style="display:flex;gap:8px;align-items:center;margin-top:12px;cursor:pointer;font-size:.9rem;color:var(--ink)">
-      <input type="checkbox" id="useWeek" style="width:auto"> <span id="weekLabel">Filtrar por semana (solo DB)</span>
-    </label>
-    <div class="row" style="margin-top:12px">
-      <label style="display:flex;gap:8px;align-items:center;margin:0;cursor:pointer;font-size:.9rem;color:var(--ink)">
-        <input type="checkbox" id="natMode" style="width:auto"> Buscar solo por país
-      </label>
-      <select id="nat" style="max-width:300px" disabled></select>
+    <div style="margin-top:12px">
+      <label for="weekIn">Filtrar por semana (solo DB, búsquedas por posición): ingresa una semana de 1 a 13 y se buscará ±2 semanas</label>
+      <div class="row">
+        <input id="weekIn" type="number" min="1" max="13" step="1" placeholder="vacío = sin filtro" style="max-width:200px">
+        <span id="weekHint" style="color:var(--muted);font-size:.88rem"></span>
+      </div>
+    </div>
+    <div class="row hide" id="natRow" style="margin-top:12px">
+      <label for="nat" style="margin:0">País</label>
+      <select id="nat" style="max-width:300px"></select>
     </div>
     <div class="desc" id="tolDesc"></div>
     <div style="margin-top:12px">
@@ -140,6 +151,19 @@
     <div style="margin-top:12px">
       <label for="proxy">Dirección de tu proxy (Cloudflare Worker, necesario para “Cargar aquí”)</label>
       <input id="proxy" placeholder="https://mi-proxy.tuusuario.workers.dev">
+    </div>
+
+    <div class="saved">
+      <h3>BÚSQUEDAS GUARDADAS</h3>
+      <div class="row">
+        <input id="saveName" placeholder="Nombre (opcional)" style="max-width:260px" maxlength="80">
+        <button class="primary" id="saveBtn" type="button">Guardar búsqueda actual</button>
+        <button id="exportBtn" type="button">Exportar</button>
+        <button id="importBtn" type="button">Importar</button>
+        <input type="file" id="importFile" accept=".json,application/json" class="hide">
+      </div>
+      <div class="status" id="savedMsg"></div>
+      <div id="savedList"></div>
     </div>
   </section>
 
@@ -207,7 +231,9 @@ const POS_HELP = {
   GK:  'Portero: misma edad, mismo keeper y velocidad (pace) con tolerancia de ±1.',
   DEF: 'Defensa: misma edad, def SS igual, def sides con tolerancia de ±2 y striker máximo 10.',
   MID: 'Mediocampista: misma edad, defender con tolerancia de ±1, wing SS igual y striker máximo 10.',
-  ATT: 'Atacante: misma edad, att SS igual y att sides con tolerancia de ±3.'
+  ATT: 'Atacante: misma edad, att SS igual y att sides con tolerancia de ±3.',
+  PID: 'PID: todas las transferencias de un único jugador (por su PID) hasta la temporada actual. No usa edad ni habilidades.',
+  PAIS:'País: busca jugadores del país elegido, ignorando los datos del Paso 1.'
 };
 
 const $ = id => document.getElementById(id);
@@ -218,7 +244,12 @@ function parsePlayer(text){
   const t = text.replace(/ /g,' ');
   // Formato compacto: [NOMBRE] [temporada] semana edad stam pace tech pass def pm str
   if(!t.includes('[')){
-    const tok = t.trim().split(/[\s,;]+/).filter(Boolean);
+    let pid;
+    const tok = [];
+    for(const x of t.trim().split(/[\s,;]+/).filter(Boolean)){
+      const m = x.match(/^pid[=:]?(\d{4,})$/i) || (/^\d{5,}$/.test(x) ? [null,x] : null);
+      if(m) pid = m[1]; else if(!/^pid[=:]?$/i.test(x)) tok.push(x);
+    }
     const isNum = x => /^\d+$/.test(x);
     let k = tok.length; while(k>0 && isNum(tok[k-1]) && tok.length-k<10) k--;
     const nums = tok.slice(k).map(Number), nameTok = tok.slice(0,k);
@@ -229,6 +260,7 @@ function parsePlayer(text){
       const p = {week,age,stam,pace,tech,pass,def,pm,str,missing:[]};
       if(season!==undefined) p.season = season;
       if(name) p.name = name;
+      if(pid) p.pid = pid;
       return addSums(p);
     }
     if(tok.length && !nameTok.length || (nameTok.length && nums.length>0 && nums.length<10)){
@@ -275,46 +307,70 @@ function addSums(p){
 }
 
 /* ---------- Construcción de enlaces ---------- */
+const POSITIONAL = ['GK','DEF','MID','ATT'];
+const modeNow = () => POSITIONAL.includes(pos) ? pos : null;
+const hasPid = () => !!(player && player.pid);
+
+// Semana de referencia (1 a 13) escrita en el Paso 2, o null si está vacía o es inválida
+function weekValue(){
+  const v = $('weekIn').value.trim();
+  if(v==='') return null;
+  const n = Number(v);
+  return Number.isInteger(n) && n>=1 && n<=13 ? n : null;
+}
+
 function buildUrl(live, page){
-  const p = player, tol = TOL[pos], natMode = $('natMode').checked;
+  const p = player, tol = TOL[pos];
   const q = [];
-  if(!live){
-    const s = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
-    q.push(['ssnsfr', s-w], ['ssnsto', s]);
-    if(!natMode && $('useWeek').checked && player.week!==undefined){
-      q.push(['weekfr', Math.max(1, player.week-2)], ['weekto', Math.min(13, player.week+2)]);
+  const s = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
+  if(pos==='PID'){
+    if(!live) q.push(['ssnsto', s]);
+    q.push(['curr', $('curr').value], ['pid', p.pid]);
+  }else{
+    if(!live){
+      q.push(['ssnsfr', s-w], ['ssnsto', s]);
+      const wk = weekValue();
+      if(wk!==null && POSITIONAL.includes(pos)) q.push(['weekfr', Math.max(1, wk-2)], ['weekto', Math.min(13, wk+2)]);
+    }
+    q.push(['curr', $('curr').value]);
+    if(pos==='PAIS'){ q.push(['nat', $('nat').value]); }
+    else{
+      q.push(['agemin', p.age], ['agemax', p.age]);
+      if(pos==='GK'){
+        q.push(['pacmin',p.pace-tol],['pacmax',p.pace+tol],['keemin',p.gk],['keemax',p.gk]);
+      }else if(pos==='DEF'){
+        q.push(['attmax',10],['defssmin',p.ssDef],['defssmax',p.ssDef],['defsdmin',p.ssDefSd-tol],['defsdmax',p.ssDefSd+tol]);
+      }else if(pos==='MID'){
+        q.push(['defmin',p.def-tol],['defmax',p.def+tol],['attmax',10],['wingssmin',p.ssWing],['wingssmax',p.ssWing]);
+      }else{
+        q.push(['attssmin',p.ssAtt],['attssmax',p.ssAtt],['attsdmin',p.ssAttSd-tol],['attsdmax',p.ssAttSd+tol]);
+      }
     }
   }
-  q.push(['curr', $('curr').value]);
-  if(natMode){ q.push(['nat', $('nat').value]); } else {
-  q.push(['agemin', p.age], ['agemax', p.age]);
-  if(pos==='GK'){
-    q.push(['pacmin',p.pace-tol],['pacmax',p.pace+tol],['keemin',p.gk],['keemax',p.gk]);
-  }else if(pos==='DEF'){
-    q.push(['attmax',10],['defssmin',p.ssDef],['defssmax',p.ssDef],['defsdmin',p.ssDefSd-tol],['defsdmax',p.ssDefSd+tol]);
-  }else if(pos==='MID'){
-    q.push(['defmin',p.def-tol],['defmax',p.def+tol],['attmax',10],['wingssmin',p.ssWing],['wingssmax',p.ssWing]);
-  }else{
-    q.push(['attssmin',p.ssAtt],['attssmax',p.ssAtt],['attsdmin',p.ssAttSd-tol],['attsdmax',p.ssAttSd+tol]);
-  }
-  }
   q.push(['order', $(live?'orderLive':'orderDb').value]);
-  let s = q.map(([k,v])=>k+'='+Math.max(0,v)).join('&');
-  if(live) s += '&orderasc=on';
-  s += '&page=' + page;
+  let str = q.map(([k,v])=>k+'='+Math.max(0,v)).join('&');
+  if(live) str += '&orderasc=on';
+  str += '&page=' + page;
   const extra = $('extra').value.trim().replace(/^[?&]+/,'');
-  if(extra) s += '&' + extra;
-  return (live?BASE_LIVE:BASE_DB)+'?'+s;
+  if(extra) str += '&' + extra;
+  return (live?BASE_LIVE:BASE_DB)+'?'+str;
 }
 
 function refresh(){
-  const hasWeek = player && player.week!==undefined;
-  $('useWeek').disabled = !hasWeek;
-  if(!hasWeek) $('useWeek').checked = false;
-  $('weekLabel').textContent = hasWeek
-    ? 'Filtrar por semana (solo DB): semanas '+Math.max(1,player.week-2)+' a '+Math.min(13,player.week+2)+' (semana '+player.week+' ±2)'
-    : 'Filtrar por semana (solo DB) — requiere el formato con números (con semana)';
-  const ok = $('natMode').checked ? !!$('nat').value : !!(player && !player.missing.length && !(pos==='GK' && player.gk===undefined));
+  // PID: bloqueado mientras el Paso 1 no incluya el PID
+  const pidOk = hasPid();
+  $('pidBtn').classList.toggle('locked', !pidOk);
+  $('pidBtn').textContent = pidOk ? 'PID' : 'PID 🔒';
+  const tm = $('typeMsg');
+  if(pos==='PID' && !pidOk){ tm.textContent = 'Para buscar por PID es necesario ingresar el PID del jugador en el Paso 1.'; tm.classList.remove('hide'); }
+  $('natRow').classList.toggle('hide', pos!=='PAIS');
+  // Pista de la semana
+  const wk = weekValue(), raw = $('weekIn').value.trim();
+  $('weekHint').textContent = raw==='' ? '' : wk===null ? 'Ingresa un número entero de 1 a 13.' : 'Semanas '+Math.max(1,wk-2)+' a '+Math.min(13,wk+2);
+  let ok;
+  if(pos==='PAIS') ok = !!$('nat').value;
+  else if(pos==='PID') ok = pidOk;
+  else ok = !!(player && !player.missing.length && !(pos==='GK' && player.gk===undefined));
   for(const k of ['Db','Live']){
     const u = ok ? buildUrl(k==='Live', 1) : '';
     $('url'+k).textContent = u || '—';
@@ -328,7 +384,7 @@ function renderSummary(){
   const box = $('summary'), msg = $('parseMsg'), sk = $('skills');
   box.innerHTML = ''; sk.innerHTML = ''; sk.classList.add('hide'); msg.classList.add('hide');
   if(!player) return;
-  if(player.gk===undefined && !player.missing.length && pos==='GK' && !$('natMode').checked){
+  if(player.gk===undefined && !player.missing.length && pos==='GK'){
     msg.textContent = 'Este formato no trae keeper (gk), así que no se puede buscar un portero. Elige DEF, MID o ATT.';
     msg.classList.remove('hide');
   }
@@ -341,6 +397,7 @@ function renderSummary(){
   chip('edad', player.age);
   if(player.season!==undefined) chip('temporada', player.season);
   if(player.week!==undefined) chip('semana', player.week);
+  if(player.pid) chip('PID', player.pid);
   if(player.missing.length) return;
   const cols = [['stam','stam'],['pace','pace'],['tech','tech'],['pass','pass'],['gk','gk'],['def','def'],['pm','pm'],['str','str'],
     ['full','ssFull'],['def','ssDef'],['def sides','ssDefSd'],['mid','ssMid'],['wing','ssWing'],['att','ssAtt'],['att sides','ssAttSd']];
@@ -361,7 +418,8 @@ function setPos(p){
   pos = p;
   document.querySelectorAll('#posSeg button').forEach(b=>b.classList.toggle('on', b.dataset.pos===p));
   $('posHelp').textContent = '';
-  $('tolDesc').innerHTML = $('natMode').checked ? '<b>Criterio de búsqueda:</b> solo país (se ignoran los datos del jugador, la posición y la semana).' : '<b>Criterio de búsqueda:</b> ' + POS_HELP[p];
+  $('typeMsg').classList.add('hide');
+  $('tolDesc').innerHTML = '<b>Criterio de búsqueda:</b> ' + POS_HELP[p];
   if(player) renderSummary();
   refresh();
 }
@@ -532,7 +590,7 @@ const hhmm = () => new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:
 // Sin coincidencias: se limpian los datos y queda solo el encabezado + la fila del jugador consultado
 function showNoMatch(k){
   const prev = data[k];
-  data[k] = {head: prev && prev.head.length ? prev.head : DEFAULT_HEAD, rows: [], player, mode: $('natMode').checked ? null : pos};
+  data[k] = {head: prev && prev.head.length ? prev.head : DEFAULT_HEAD, rows: [], player, mode: modeNow()};
   hidden[k].clear();
   renderResults(k);
   $('cardRes'+k).classList.remove('hide');
@@ -559,7 +617,7 @@ async function loadPage(k, page){
     }else{
       $('noMatch'+k).classList.add('hide');
       cur[k]=page; lastSig[k]=sig;
-      data[k] = {head, rows, player, mode: $('natMode').checked ? null : pos}; hidden[k].clear();
+      data[k] = {head, rows, player, mode: modeNow()}; hidden[k].clear();
       renderResults(k); card.classList.remove('hide');
       $('pg'+k).textContent = 'Página '+page;
       st.textContent = rows.length+' filas en la página '+page+'.';
@@ -584,33 +642,145 @@ document.addEventListener('click', ev=>{
   if(row && row!==prev) row.classList.add('sel');
 });
 
+/* ---------- Búsquedas guardadas ---------- */
+const SAVE_KEY = 'sokkerSavedSearches';
+const TYPES = ['GK','DEF','MID','ATT','PID','PAIS'];
+const newId = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+let searches = [];
+
+function loadSearches(){ try{ const a = JSON.parse(localStorage.getItem(SAVE_KEY)||'[]'); searches = Array.isArray(a) ? a.map(cleanSearch).filter(Boolean) : []; }catch{ searches = []; } }
+function storeSearches(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(searches)); return true; }catch{ return false; } }
+
+function cleanSearch(o){
+  if(!o || typeof o!=='object') return null;
+  const str = (v,n)=> typeof v==='string' ? v.slice(0,n) : '';
+  const num = (v,min,max,def)=>{ const n = parseInt(v,10); return Number.isFinite(n) && n>=min && n<=max ? String(n) : def; };
+  return {
+    id: str(o.id,40) || newId(),
+    name: str(o.name,80).trim() || 'Búsqueda',
+    savedAt: Number.isFinite(+o.savedAt) ? +o.savedAt : Date.now(),
+    paste: str(o.paste,5000),
+    type: TYPES.includes(o.type) ? o.type : 'GK',
+    season: num(o.season,1,9999,'79'),
+    window: num(o.window,0,99,'2'),
+    curr: num(o.curr,1,CURRENCIES.length,'13'),
+    week: (o.week===''||o.week==null) ? '' : num(o.week,1,13,''),
+    nat: COUNTRIES.some(c=>String(c[0])===String(o.nat)) ? String(o.nat) : '',
+    orderDb: num(o.orderDb,1,3,'1'),
+    orderLive: num(o.orderLive,1,3,'2'),
+    extra: str(o.extra,300)
+  };
+}
+
+function currentState(){
+  return {paste:$('paste').value, type:pos, season:$('season').value, window:$('window').value, curr:$('curr').value,
+    week:$('weekIn').value, nat:$('nat').value, orderDb:$('orderDb').value, orderLive:$('orderLive').value, extra:$('extra').value};
+}
+
+const TYPE_LABEL = {GK:'GK',DEF:'DEF',MID:'MID',ATT:'ATT',PID:'PID',PAIS:'PAÍS'};
+function renderSaved(){
+  const box = $('savedList'); box.innerHTML = '';
+  if(!searches.length){ const e = document.createElement('div'); e.className='status'; e.textContent='Aún no hay búsquedas guardadas.'; box.appendChild(e); return; }
+  for(const s of searches){
+    const row = document.createElement('div'); row.className = 'sitem';
+    const info = document.createElement('div');
+    const nm = document.createElement('b'); nm.textContent = s.name;
+    const meta = document.createElement('small');
+    const natName = (COUNTRIES.find(c=>String(c[0])===s.nat)||[])[1];
+    meta.textContent = TYPE_LABEL[s.type] + (s.type==='PAIS' && natName ? ' · '+natName : '') + ' · guardada '+new Date(s.savedAt).toLocaleString('es-CL',{dateStyle:'short',timeStyle:'short'});
+    info.append(nm, meta);
+    const acts = document.createElement('div'); acts.className='row';
+    const ld = document.createElement('button'); ld.type='button'; ld.textContent='Cargar'; ld.addEventListener('click',()=>{ applyState(s); $('savedMsg').textContent = 'Búsqueda “'+s.name+'” cargada.'; });
+    const dl = document.createElement('button'); dl.type='button'; dl.textContent='Eliminar'; dl.addEventListener('click',()=>{
+      if(!confirm('¿Eliminar la búsqueda “'+s.name+'”?')) return;
+      searches = searches.filter(x=>x.id!==s.id); storeSearches(); renderSaved(); $('savedMsg').textContent = 'Búsqueda eliminada.';
+    });
+    acts.append(ld, dl); row.append(info, acts); box.appendChild(row);
+  }
+}
+
+function saveCurrent(){
+  const st = currentState();
+  const label = player && player.name ? player.name : (pos==='PAIS' ? ((COUNTRIES.find(c=>String(c[0])===st.nat)||[])[1] || 'País') : 'Búsqueda');
+  const entry = cleanSearch({...st, id:newId(), savedAt:Date.now(), name: $('saveName').value.trim() || label+' · '+TYPE_LABEL[pos]});
+  searches.unshift(entry);
+  $('saveName').value = '';
+  $('savedMsg').textContent = storeSearches() ? 'Búsqueda guardada en este dispositivo.' : 'No se pudo guardar en este navegador (almacenamiento bloqueado).';
+  renderSaved();
+}
+
+function exportSearches(){
+  if(!searches.length){ $('savedMsg').textContent = 'No hay búsquedas para exportar.'; return; }
+  const blob = new Blob([JSON.stringify({app:'transferencias-sokker', version:1, searches}, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'busquedas-sokker-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  $('savedMsg').textContent = searches.length+' búsqueda'+(searches.length>1?'s':'')+' exportada'+(searches.length>1?'s':'')+'.';
+}
+
+async function importSearches(file){
+  try{
+    const obj = JSON.parse(await file.text());
+    const list = Array.isArray(obj) ? obj : (obj && Array.isArray(obj.searches) ? obj.searches : null);
+    if(!list) throw new Error('formato no reconocido');
+    const clean = list.map(cleanSearch).filter(Boolean);
+    if(!clean.length) throw new Error('el archivo no contiene búsquedas');
+    for(const c of clean){ const i = searches.findIndex(x=>x.id===c.id); if(i>=0) searches[i]=c; else searches.push(c); }
+    storeSearches(); renderSaved();
+    $('savedMsg').textContent = clean.length+' búsqueda'+(clean.length>1?'s':'')+' importada'+(clean.length>1?'s':'')+'.';
+  }catch(e){
+    $('savedMsg').textContent = 'No se pudo importar: '+e.message+'.';
+  }
+}
+
 /* ---------- Eventos ---------- */
+let weekAuto = false;
+const SAVED_FIELDS = ['season','window','curr','extra','orderDb','orderLive','proxy','nat'];
+function saveSettings(){ try{ const s={}; for(const i of SAVED_FIELDS) s[i]=$(i).value; localStorage.setItem('sokkerTransfers',JSON.stringify(s)); }catch{} }
+
+function onPaste(fromLoad){
+  const t = $('paste').value.trim();
+  player = t ? parsePlayer(t) : null;
+  if(!fromLoad && player && !player.missing.length && ['DEF','MID','ATT'].includes(pos) && player.gk>=Math.max(player.def,player.pm,player.str,player.pace,player.tech,player.pass) && player.gk>=7) setPos('GK');
+  // Si el Paso 1 trae semana, se coloca automáticamente en el filtro de semana
+  if(!fromLoad && player && player.week!==undefined){ $('weekIn').value = player.week; weekAuto = true; }
+  else if(!fromLoad && weekAuto){ $('weekIn').value = ''; weekAuto = false; }  // la semana puesta automáticamente no se arrastra a otro jugador
+  renderSummary(); refresh();
+}
+
+function applyState(st){
+  $('paste').value = st.paste; onPaste(true);
+  for(const id of ['season','window','curr','nat','orderDb','orderLive','extra']) $(id).value = st[id];
+  $('weekIn').value = st.week; weekAuto = false;
+  saveSettings();
+  setPos(st.type);
+}
+
 function init(){
   $('curr').innerHTML = CURRENCIES.map((c,i)=>`<option value="${i+1}">${c}</option>`).join('');
   $('curr').value = '13';
   const coll = new Intl.Collator('es', {sensitivity:'base'});
   $('nat').innerHTML = '<option value="">— elige un país —</option>' + [...COUNTRIES].sort((a,b)=>coll.compare(a[1],b[1])).map(([id,n])=>`<option value="${id}">${n}</option>`).join('');
-  const saved = ['season','window','curr','extra','orderDb','orderLive','proxy','nat'];
   try{
     const s = JSON.parse(localStorage.getItem('sokkerTransfers')||'{}');
-    for(const id of saved) if(s[id]!==undefined) $(id).value = s[id];
+    for(const id of SAVED_FIELDS) if(s[id]!==undefined) $(id).value = s[id];
   }catch{}
 
-  $('paste').addEventListener('input', ()=>{
-    const t = $('paste').value.trim();
-    player = t ? parsePlayer(t) : null;
-    if(player && !player.missing.length && player.gk>=Math.max(player.def,player.pm,player.str,player.pace,player.tech,player.pass) && player.gk>=7 && pos!=='GK') setPos('GK');
-    $('useWeek').checked = !!(player && player.week!==undefined);
-    renderSummary(); refresh();
-  });
-  $('useWeek').addEventListener('change', refresh);
-  $('natMode').addEventListener('change',()=>{ $('nat').disabled = !$('natMode').checked; setPos(pos); });
-  document.querySelectorAll('#posSeg button').forEach(b=>b.addEventListener('click',()=>setPos(b.dataset.pos)));
-  for(const id of saved){
-    $(id).addEventListener('input',()=>{
-      refresh();
-      try{ const s={}; for(const i of saved) s[i]=$(i).value; localStorage.setItem('sokkerTransfers',JSON.stringify(s)); }catch{}
-    });
+  $('paste').addEventListener('input', ()=>onPaste(false));
+  $('weekIn').addEventListener('input', ()=>{ weekAuto = false; refresh(); });
+  document.querySelectorAll('#posSeg button').forEach(b=>b.addEventListener('click',()=>{
+    if(b.dataset.pos==='PID' && !hasPid()){
+      const tm = $('typeMsg');
+      tm.textContent = 'Para buscar por PID es necesario ingresar el PID del jugador en el Paso 1 (el texto copiado de Sokker lo trae; en el formato de números, agrégalo al final).';
+      tm.classList.remove('hide');
+      return;
+    }
+    setPos(b.dataset.pos);
+  }));
+  for(const id of SAVED_FIELDS){
+    $(id).addEventListener('input',()=>{ refresh(); saveSettings(); });
   }
   for(const k of ['Db','Live']){
     $('load'+k).addEventListener('click',()=>{ lastSig[k]=null; loadPage(k,1); });
@@ -622,8 +792,15 @@ function init(){
     });
   }
   $('clearBtn').addEventListener('click',()=>{
-    $('paste').value=''; player=null; renderSummary(); refresh(); $('paste').focus();
+    $('paste').value='';
+    if(weekAuto){ $('weekIn').value=''; weekAuto=false; }
+    onPaste(true); $('paste').focus();
   });
+  $('saveBtn').addEventListener('click', saveCurrent);
+  $('exportBtn').addEventListener('click', exportSearches);
+  $('importBtn').addEventListener('click', ()=>$('importFile').click());
+  $('importFile').addEventListener('change', ev=>{ const f = ev.target.files[0]; if(f) importSearches(f); ev.target.value=''; });
+  loadSearches(); renderSaved();
   setPos('GK');
 }
 init();
