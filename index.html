@@ -100,8 +100,10 @@
   #advPanel{border:2px solid #7b3fa0}
   #savedPanel{border:2px solid #b79a4c}
   @media (prefers-color-scheme:dark){.tgl.adv{background:#8a4fb0;border-color:#b78be0}#advPanel{border-color:#b78be0}#savedPanel{border-color:#d9bf7a}}
-  .desc.crit{background:none;text-align:center;color:#d97a00;font-weight:600}
-  @media (prefers-color-scheme:dark){.desc.crit{color:#ffa94d}}
+  .desc.crit{background:none;text-align:center;color:#c99700;font-weight:400}
+  .desc.crit b{font-weight:700}
+  #savedPanel{border-color:#e0509b!important}
+  @media (prefers-color-scheme:dark){.desc.crit{color:#ffd43b}#savedPanel{border-color:#ff7ab8!important}}
   table.res .num{position:sticky;left:0;z-index:2;white-space:nowrap}
   table.res tbody td.num{background:var(--card);color:var(--muted);font-weight:600}
   table.res thead th.num{background:var(--accent-soft);z-index:4}
@@ -160,7 +162,7 @@
       </div>
       <span id="posHelp" style="color:var(--muted);font-size:.88rem"></span>
     </div>
-    <div id="ignoreHelp" class="status hide" style="margin:-4px 0 12px">No usa ningún dato del Paso 1 + solo temporadas, moneda y parámetros adicionales (por ejemplo país o rango de edad).</div>
+    <div id="ignoreHelp" class="hide" style="margin:-4px 0 12px;font-size:.88rem;color:var(--muted)">No usa ningún dato del Paso 1 + solo temporadas, moneda y parámetros adicionales (por ejemplo país o rango de edad).</div>
     <div id="typeMsg" class="err hide" style="margin:-4px 0 12px"></div>
     <div class="grid">
       <div><label for="season">Temporada actual</label><div class="row" style="gap:6px;flex-wrap:nowrap"><input id="season" type="number" min="1" value="79"><button type="button" id="seasonBtn" title="Lee la temporada máxima desde Geston">Actualizar</button></div><div id="seasonMsg" style="font-size:.82rem;margin-top:4px;color:var(--muted)"></div></div>
@@ -213,6 +215,9 @@
         <input type="file" id="importFile" accept=".json,application/json" class="hide">
       </div>
       <div class="status" id="savedMsg"></div>
+      <div class="row" style="margin-top:8px"><small style="color:var(--muted)">Ordenar:</small>
+        <button type="button" data-sort="name">Nombre A–Z</button><button type="button" data-sort="type">Tipo</button><button type="button" data-sort="new">Más recientes</button><button type="button" data-sort="old">Más antiguas</button>
+      </div>
       <div id="savedList"></div>
     </div>
   </section>
@@ -236,6 +241,8 @@
           <button type="button" data-pos="DEF">DEF</button>
           <button type="button" data-pos="MID">MID</button>
           <button type="button" data-pos="ATT">ATT</button>
+          <button type="button" data-pos="PID" class="pidq">PID</button>
+          <button type="button" data-pos="PAIS">IGNORAR PASO 1</button>
         </div>
       </div>
       <div class="status" id="statusDb"></div>
@@ -257,6 +264,8 @@
           <button type="button" data-pos="DEF">DEF</button>
           <button type="button" data-pos="MID">MID</button>
           <button type="button" data-pos="ATT">ATT</button>
+          <button type="button" data-pos="PID" class="pidq">PID</button>
+          <button type="button" data-pos="PAIS">IGNORAR PASO 1</button>
         </div>
       </div>
       <div class="status" id="statusLive"></div>
@@ -494,7 +503,7 @@ function renderCriteria(ok){
   let lines;
   try{ lines = ok ? criteriaLines() : null; }catch{ lines = null; }
   if(!lines) lines = (POS_HELP[pos]||'').split(' + ').filter(Boolean);
-  const html = '<b>Criterio de búsqueda:</b>' + lines.map(l=>'<br><i>+ '+l.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</i>').join('');
+  const html = '<b>CRITERIOS DE BÚSQUEDA</b>' + lines.map(l=>'<br><i>+ '+l.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</i>').join('');
   $('tolDesc').innerHTML = $('tolDesc3').innerHTML = html;
 }
 
@@ -587,6 +596,7 @@ function refresh(){
   const pidOk = hasPid();
   $('pidBtn').classList.toggle('locked', !pidOk);
   $('pidBtn').textContent = pidOk ? 'PID' : 'PID 🔒';
+  document.querySelectorAll('.pidq').forEach(b=>{ b.classList.toggle('locked', !pidOk); b.textContent = pidOk ? 'PID' : 'PID 🔒'; });
   const tm = $('typeMsg');
   if(pos==='PID' && !pidOk){ tm.textContent = 'Para buscar por PID es necesario ingresar el PID del jugador en el Paso 1.'; tm.classList.remove('hide'); }
   // Pista de la semana
@@ -1004,10 +1014,18 @@ function renderSaved(){
       if(!confirm('¿Eliminar la búsqueda “'+s.name+'”?')) return;
       searches = searches.filter(x=>x.id!==s.id); storeSearches(); renderSaved(); $('savedMsg').textContent = 'Búsqueda eliminada.';
     });
-    acts.append(ld, dl); row.append(info, acts); box.appendChild(row);
+    const mv = (d,txt)=>{ const b = document.createElement('button'); b.type='button'; b.textContent=txt; b.title = d<0?'Subir':'Bajar'; b.addEventListener('click',()=>{ const i = searches.findIndex(x=>x.id===s.id), j = i+d; if(j<0||j>=searches.length) return; [searches[i],searches[j]] = [searches[j],searches[i]]; storeSearches(); renderSaved(); }); return b; };
+    acts.append(mv(-1,'↑'), mv(1,'↓'), ld, dl); row.append(info, acts); box.appendChild(row);
   }
 }
 
+function sortSearches(how){
+  const coll = new Intl.Collator('es',{sensitivity:'base',numeric:true});
+  const f = {name:(a,b)=>coll.compare(a.name,b.name), type:(a,b)=>TYPES.indexOf(a.type)-TYPES.indexOf(b.type) || coll.compare(a.name,b.name), new:(a,b)=>b.savedAt-a.savedAt, old:(a,b)=>a.savedAt-b.savedAt}[how];
+  if(!f) return;
+  searches.sort(f); storeSearches(); renderSaved();
+  $('savedMsg').textContent = 'Búsquedas ordenadas.';
+}
 function saveCurrent(){
   const st = currentState();
   const natName = (COUNTRIES.find(c=>String(c[0])===st.nat)||[])[1];
@@ -1095,11 +1113,12 @@ function init(){
 
   $('paste').addEventListener('input', ()=>onPaste(false));
   $('weekIn').addEventListener('input', ()=>{ weekAuto = false; refresh(); });
-  document.querySelectorAll('#posSeg button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#posSeg button, .posq button').forEach(b=>b.addEventListener('click',()=>{
     if(b.dataset.pos==='PID' && !hasPid()){
       const tm = $('typeMsg');
       tm.textContent = 'Para buscar por PID es necesario ingresar el PID del jugador en el Paso 1 (el texto copiado de Sokker lo trae; en el formato de números, agrégalo al final).';
       tm.classList.remove('hide');
+      const sm = b.closest('.posq') && b.closest('section').querySelector('.status'); if(sm) sm.textContent = tm.textContent;
       return;
     }
     setPos(b.dataset.pos);
@@ -1121,7 +1140,6 @@ function init(){
     if(weekAuto){ $('weekIn').value=''; weekAuto=false; }
     onPaste(true); $('paste').focus();
   });
-  document.querySelectorAll('.posq button').forEach(b=>b.addEventListener('click',()=>setPos(b.dataset.pos)));
   $('downBtn').addEventListener('click',()=>document.querySelector('.sec-3').scrollIntoView({behavior:'smooth', block:'start'}));
   for(const k of ['Db','Live']){
     $('up'+k).addEventListener('click',()=>document.querySelector('.sec-1').scrollIntoView({behavior:'smooth', block:'start'}));
@@ -1140,6 +1158,7 @@ function init(){
   $('resetBtn1').addEventListener('click', resetAll);
   $('resetBtn2').addEventListener('click', resetAll);
   $('saveBtn').addEventListener('click', saveCurrent);
+  document.querySelectorAll('[data-sort]').forEach(b=>b.addEventListener('click',()=>sortSearches(b.dataset.sort)));
   $('exportBtn').addEventListener('click', exportSearches);
   $('importBtn').addEventListener('click', ()=>$('importFile').click());
   $('importFile').addEventListener('change', ev=>{ const f = ev.target.files[0]; if(f) importSearches(f); ev.target.value=''; });
