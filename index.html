@@ -100,7 +100,7 @@
   #advPanel{border:2px solid #7b3fa0}
   #savedPanel{border:2px solid #b79a4c}
   @media (prefers-color-scheme:dark){.tgl.adv{background:#8a4fb0;border-color:#b78be0}#advPanel{border-color:#b78be0}#savedPanel{border-color:#d9bf7a}}
-  .desc.crit{background:none;text-align:center;color:#c99700;font-weight:400}
+  .desc.crit{background:none;text-align:left;width:fit-content;margin-left:auto;margin-right:auto;color:#c99700;font-weight:400}
   .desc.crit b{font-weight:700}
   #savedPanel{border-color:#e0509b!important}
   @media (prefers-color-scheme:dark){.desc.crit{color:#ffd43b}#savedPanel{border-color:#ff7ab8!important}}
@@ -210,10 +210,14 @@
       <div class="row">
         <input id="saveName" placeholder="Nombre (opcional)" style="max-width:260px" maxlength="80">
         <button class="primary" id="saveBtn" type="button">Guardar búsqueda actual</button>
-        <button id="exportBtn" type="button">Exportar</button>
-        <button id="importBtn" type="button">Importar</button>
-        <input type="file" id="importFile" accept=".json,application/json" class="hide">
+        <button id="exportBtn" type="button">Exportar Todo</button>
+        <button id="importBtn" type="button">Importar Todo</button>
       </div>
+      <div id="ioArea" class="hide" style="margin-top:10px">
+        <textarea id="ioBox" rows="5" spellcheck="false" style="width:100%;font-family:ui-monospace,monospace;font-size:.8rem"></textarea>
+        <div class="row" style="margin-top:6px"><button class="primary hide" id="importGo" type="button">Aplicar importación</button><button id="ioClose" type="button">Cerrar</button></div>
+      </div>
+      <div id="savedWarn" class="bad" style="font-size:.88rem;margin-top:6px"></div>
       <div class="status" id="savedMsg"></div>
       <div class="row" style="margin-top:8px"><small style="color:var(--muted)">Ordenar:</small>
         <button type="button" data-sort="name">Nombre A–Z</button><button type="button" data-sort="type">Tipo</button><button type="button" data-sort="new">Más recientes</button><button type="button" data-sort="old">Más antiguas</button>
@@ -222,7 +226,7 @@
     </div>
   </section>
 
-  <section class="card sec-3"><h2 style="margin:0">PASO 3 - MOSTRAR RESULTADOS</h2><div class="desc crit" id="tolDesc3"></div></section>
+  <section class="card sec-3"><h2 style="margin:0">PASO 3 - MOSTRAR RESULTADOS</h2></section>
 
   <div class="two">
     <section class="card sec-db">
@@ -271,6 +275,7 @@
       <div class="status" id="statusLive"></div>
     </section>
   </div>
+  <div class="desc crit" id="tolDesc3" style="margin:0 auto 16px"></div>
 </main>
 
 <div id="results">
@@ -1037,27 +1042,52 @@ function saveCurrent(){
   renderSaved();
 }
 
-function exportSearches(){
-  if(!searches.length){ $('savedMsg').textContent = 'No hay búsquedas para exportar.'; return; }
-  const blob = new Blob([JSON.stringify({app:'transferencias-sokker', version:1, searches}, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'busquedas-sokker-'+new Date().toISOString().slice(0,10)+'.json';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
-  $('savedMsg').textContent = searches.length+' búsqueda'+(searches.length>1?'s':'')+' exportada'+(searches.length>1?'s':'')+'.';
+// Firma de una búsqueda sin nombre, fecha ni id: sirve para detectar repetidas
+function searchSig(x){
+  return JSON.stringify([x.type,x.season,x.window,x.curr,x.week,x.nat,x.orderDb,x.orderLive,
+    (x.extras||[]).map(e=>e.k+':'+e.t+':'+(e.t2||'')).sort()]);
 }
-
-async function importSearches(file){
+async function exportSearches(){
+  if(!searches.length){ $('savedMsg').textContent = 'No hay búsquedas para exportar.'; return; }
+  const txt = JSON.stringify({app:'transferencias-sokker', version:1, searches});
+  $('ioArea').classList.remove('hide'); $('importGo').classList.add('hide');
+  $('ioBox').value = txt; $('ioBox').select();
+  const n = searches.length;
+  $('savedWarn').textContent = '';
+  $('savedMsg').textContent = (await copyText(txt))
+    ? n+' búsqueda'+(n>1?'s':'')+' copiada'+(n>1?'s':'')+' al portapapeles. Pégalas en el otro dispositivo con “Importar Todo”.'
+    : 'No pude copiar automáticamente: el texto está en el recuadro; selecciónalo y cópialo.';
+}
+function openImport(){
+  $('ioArea').classList.remove('hide'); $('importGo').classList.remove('hide');
+  $('ioBox').value = ''; $('ioBox').placeholder = 'Pega aquí el texto exportado con “Exportar Todo” y pulsa “Aplicar importación”.'; $('ioBox').focus();
+  $('savedMsg').textContent = ''; $('savedWarn').textContent = '';
+}
+function importSearches(text){
+  const warn = [];
   try{
-    const obj = JSON.parse(await file.text());
+    const obj = JSON.parse(text);
     const list = Array.isArray(obj) ? obj : (obj && Array.isArray(obj.searches) ? obj.searches : null);
     if(!list) throw new Error('formato no reconocido');
     const clean = list.map(cleanSearch).filter(Boolean);
-    if(!clean.length) throw new Error('el archivo no contiene búsquedas');
-    for(const c of clean){ const i = searches.findIndex(x=>x.id===c.id); if(i>=0) searches[i]=c; else searches.push(c); }
+    if(!clean.length) throw new Error('el texto no contiene búsquedas');
+    const bySig = new Map(searches.map(x=>[searchSig(x), x]));
+    let added = 0, same = 0, renamed = 0;
+    for(const c of clean){
+      const sig = searchSig(c), ex = bySig.get(sig);
+      if(ex){
+        if(ex.name.trim().toLowerCase()===c.name.trim().toLowerCase()) same++;
+        else{ renamed++; warn.push('“'+c.name+'” es la misma búsqueda que “'+ex.name+'” (otro nombre); no se importó.'); }
+        continue;
+      }
+      if(searches.some(x=>x.id===c.id)) c.id = newId();   // mismo id pero ajustes distintos: se conserva como búsqueda nueva
+      searches.push(c); bySig.set(sig, c); added++;
+    }
     storeSearches(); renderSaved();
-    $('savedMsg').textContent = clean.length+' búsqueda'+(clean.length>1?'s':'')+' importada'+(clean.length>1?'s':'')+'.';
+    $('savedMsg').textContent = 'Importación lista: '+added+' nueva'+(added===1?'':'s')+(same?', '+same+' ya existía'+(same===1?'':'n')+' (omitida'+(same===1?'':'s')+')':'')+(renamed?', '+renamed+' repetida'+(renamed===1?'':'s')+' con otro nombre':'')+'.';
+    $('savedWarn').innerHTML = '';
+    for(const w of warn){ const d = document.createElement('div'); d.textContent = 'Aviso: '+w; $('savedWarn').appendChild(d); }
+    if(added) $('ioArea').classList.add('hide');
   }catch(e){
     $('savedMsg').textContent = 'No se pudo importar: '+e.message+'.';
   }
@@ -1160,8 +1190,9 @@ function init(){
   $('saveBtn').addEventListener('click', saveCurrent);
   document.querySelectorAll('[data-sort]').forEach(b=>b.addEventListener('click',()=>sortSearches(b.dataset.sort)));
   $('exportBtn').addEventListener('click', exportSearches);
-  $('importBtn').addEventListener('click', ()=>$('importFile').click());
-  $('importFile').addEventListener('change', ev=>{ const f = ev.target.files[0]; if(f) importSearches(f); ev.target.value=''; });
+  $('importBtn').addEventListener('click', openImport);
+  $('importGo').addEventListener('click', ()=>importSearches($('ioBox').value));
+  $('ioClose').addEventListener('click', ()=>$('ioArea').classList.add('hide'));
   loadSearches(); renderSaved();
   setPos('GK');
 }
