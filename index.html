@@ -102,6 +102,11 @@
   table.res thead td.num{background:var(--hl-soft);z-index:3}
   #results table.res thead th:not(.num){cursor:pointer;user-select:none}
   #results table.res thead th:not(.num):hover{filter:brightness(.93)}
+  button.purple{background:#7e57c2;border-color:#6a46ad;color:#fff;font-weight:700}
+  button.purple:hover{background:#6c47b0;border-color:#573a92}
+  a.btn.turq{background:#2bb3a8;border-color:#1f948a;color:#04211f;font-weight:700}
+  a.btn.turq:hover{background:#3cc7bb;border-color:#177a71}
+  @media (prefers-color-scheme:dark){a.btn.turq{background:#3cc7bb;border-color:#6fe0d5}button.purple{background:#9b7ddb;border-color:#b79cf0}}
   button.arrow{font-weight:800;font-size:1.6rem;line-height:1;padding:4px 18px}
   button.orange,a.btn.orange{background:#f08c00;border-color:#d97a00;color:#201300;font-weight:700}
   button.orange:hover,a.btn.orange:hover{background:#ffa01f;border-color:#b86500}
@@ -127,7 +132,7 @@
     <h2>PASO 1 - IMPORTAR DATOS</h2>
     <div class="row" style="justify-content:space-between;margin-bottom:3px">
       <label for="paste" style="margin:0">Pega aquí el texto copiado de Sokker, o NOMBRE temporada semana edad stam pace tech pass def pm str (+ PID opcional), o solo un PID</label>
-      <span class="row" style="gap:8px"><button class="arrow" id="downBtn" type="button" title="Bajar al Paso 3" aria-label="Bajar al Paso 3">↓</button><button class="danger" id="clearBtn" type="button">Limpiar</button></span>
+      <span class="row" style="gap:8px"><button class="arrow" id="downBtn" type="button" title="Bajar al Paso 3" aria-label="Bajar al Paso 3">↓</button><button class="danger" id="clearBtn" type="button">Limpiar</button><button class="purple" id="resetBtn1" type="button">REINICIAR BÚSQUEDA</button></span>
     </div>
     <textarea id="paste" placeholder="CAYO ANDAUR 74 2 21 5 13 10 6 13 8 4 38870317&#10;&#10;o el texto de Sokker:&#10;[b][pid=40397542]Omar Lisboa[/pid][/b], age: [b]18[/b], height [b]185[/b] cm&#10;...&#10;stamina [b][5][/b] [b]average[/b], keeper [b][9][/b] [b]very good[/b]&#10;pace [b][8][/b] ..."></textarea>
     <div id="parseMsg" class="err hide"></div>
@@ -169,15 +174,24 @@
     <div class="row" style="margin-top:16px">
       <button class="tgl adv" id="tglAdv" type="button" aria-expanded="false" aria-controls="advPanel">▸ ⚙ Configuración Avanzada</button>
       <button class="tgl sav" id="tglSaved" type="button" aria-expanded="false" aria-controls="savedPanel">▸ 💾 Búsquedas Guardadas</button>
+      <button class="purple" id="resetBtn2" type="button">REINICIAR BÚSQUEDA</button>
     </div>
 
     <div class="panel hide" id="advPanel">
       <div>
-        <label for="extra">Parámetros extra (opcional, ej. <code>countr=40&amp;formmin=8</code>)</label>
-        <input id="extra" placeholder="param=valor&param=valor">
+        <label>Parámetros adicionales</label>
+        <p class="status" style="margin:0 0 8px">Cada parámetro toma su valor del jugador del Paso 1 y busca ± la tolerancia elegida; reemplaza al criterio equivalente de la búsqueda. País se elige en el segundo desplegable, y PID no usa tolerancia.</p>
+        <div id="extraList"></div>
+        <div class="row" id="extraNew">
+          <select id="extraKey" style="max-width:240px"></select>
+          <select id="extraTol" style="max-width:200px" disabled></select>
+          <button class="primary" id="extraAdd" type="button">Añadir Parámetro</button>
+        </div>
+        <div class="status" id="extraMsg"></div>
+        <div class="status">* Nombre del parámetro sin verificar en Geston.</div>
       </div>
       <div style="margin-top:12px">
-        <label for="proxy">Dirección de tu proxy (Cloudflare Worker, necesario para “Cargar aquí”)</label>
+        <label for="proxy">Dirección de tu proxy (Cloudflare Worker, necesario para “Mostrar Resultados”)</label>
         <input id="proxy" placeholder="https://mi-proxy.tuusuario.workers.dev">
       </div>
     </div>
@@ -207,8 +221,8 @@
       </select>
       <div class="url" id="urlDb">—</div>
       <div class="row">
-        <a class="btn orange" id="openDb" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
-        <button class="orange" id="loadDb">Cargar aquí</button>
+        <button class="orange" id="loadDb">Mostrar Resultados</button>
+        <a class="btn turq" id="openDb" target="_blank" rel="noopener">Geston Website</a>
         <button class="icon" id="copyDb" type="button" title="Copiar enlace" aria-label="Copiar enlace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
       </div>
       <div class="posq"><small>Buscar como:</small>
@@ -229,8 +243,8 @@
       </select>
       <div class="url" id="urlLive">—</div>
       <div class="row">
-        <a class="btn orange" id="openLive" target="_blank" rel="noopener">Abrir en pestaña nueva</a>
-        <button class="orange" id="loadLive">Cargar aquí</button>
+        <button class="orange" id="loadLive">Mostrar Resultados</button>
+        <a class="btn turq" id="openLive" target="_blank" rel="noopener">Geston Website</a>
         <button class="icon" id="copyLive" type="button" title="Copiar enlace" aria-label="Copiar enlace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
       </div>
       <div class="posq"><small>Buscar como:</small>
@@ -265,6 +279,33 @@ const BASE_LIVE = 'https://geston.smallhost.pl/sokker/transfers_live.php';
 const CURRENCIES = ['€','zł','$','£','lei (România)','lei (Moldova)','R$','Ft','TL','Kč','u$s','k.$ (Colombia)','k.$ (Chile)','$U','лв.','sol','din','CHF','kr.','$MN','k.₫','KM','m','k Bs.','грн.','kr (Sverige)','kr (Ísland)','руб.','$ MN','₪','U$S','¥ (Zhōngguó)','¥ (Nippon)','Rs.','k Rp','Դրամ','C$ (Canada)','C$ (Nicaragua)','k G','E£','AU$','Bs','S$','k. ₩','₦','NZ$','k ¢','درهم','lek','ден.','RM','L','к руб.','R','ლ','฿','P','k. Fr','Q','ريال','RD$','HK$','k.¢','دج','د.ت','T','J$','د.إ','k so‘m','Sh','k.ريال'];
 
 const COUNTRIES = [[89,"Al Maghrib"],[105,"al-Jazā’ir"],[71,"Andorra"],[19,"Argentina"],[88,"as-Saʻūdiyya"],[6,"Australia"],[79,"Azərbaycan"],[46,"Belarus"],[28,"België"],[57,"Bolivia"],[47,"Bosna i Hercegovina"],[21,"Brasil"],[54,"Bulgaria"],[80,"Cameroun"],[5,"Canada"],[13,"Česká republika"],[42,"Chile"],[36,"Colombia"],[70,"Costa Rica"],[75,"Crna Gora"],[97,"Cuba"],[40,"Cymru"],[78,"Daehan Minguk"],[29,"Danmark"],[15,"Deutschland"],[58,"Ecuador"],[33,"Eesti"],[92,"El Salvador"],[3,"England"],[17,"España"],[16,"France"],[50,"Ghana"],[77,"Guatemala"],[66,"Hayastan"],[49,"Hellas"],[68,"Honduras"],[60,"Hong Kong"],[34,"Hrvatska"],[51,"India"],[65,"Indonesia"],[86,"Īrān"],[32,"Ireland"],[63,"Ísland"],[52,"Israel"],[10,"Italia"],[11,"Jamaica"],[103,"Kazakhstán"],[76,"Kenya"],[85,"Kypros"],[45,"Latvija"],[55,"Lëtzebuerg"],[23,"Lietuva"],[8,"Magyarország"],[59,"Malaysia"],[67,"Malta"],[18,"México"],[48,"Misr"],[69,"Moldova"],[12,"Nederland"],[2,"New Zealand"],[100,"Nicaragua"],[38,"Nigeria"],[62,"Nippon"],[27,"Norge"],[30,"Österreich"],[104,"O‘zbekiston"],[73,"Panamá"],[72,"Paraguay"],[37,"Perú"],[96,"Pilipinas"],[1,"Polska"],[20,"Portugal"],[90,"Prathet Thai"],[61,"República Dominicana"],[9,"România"],[43,"Rossiya"],[106,"Sakartvelo"],[24,"Schweiz"],[7,"Scotland"],[81,"Sénégal"],[56,"Severna Makedonija"],[53,"Shqipëria"],[83,"Singapore"],[26,"Slovenija"],[14,"Slovensko"],[22,"South Africa"],[39,"Srbija"],[25,"Suomi"],[31,"Sverige"],[87,"Tūnis"],[41,"Türkiye"],[99,"U.A.E."],[64,"Ukraina"],[35,"Uruguay"],[4,"USA"],[44,"Venezuela"],[84,"Việt Nam"],[82,"Zhōngguó"]];
+
+// Parámetros adicionales del panel avanzado. Valor = dato del jugador (Paso 1) ± tolerancia.
+// ok:true = nombre del parámetro confirmado en tus enlaces; sin ok = deducido por patrón (sin verificar).
+const EXTRA_PARAMS = [
+  {g:'Jugador',     k:'age',    label:'Edad (age)',        min:'agemin',    max:'agemax',    val:p=>p.age,    ok:true},
+  {g:'Jugador',     k:'form',   label:'Forma (form)',      min:'formmin',   max:'formmax',   val:p=>p.form},
+  {g:'Habilidades', k:'stam',   label:'Stamina',           min:'stamin',    max:'stamax',    val:p=>p.stam},
+  {g:'Habilidades', k:'pace',   label:'Pace',              min:'pacmin',    max:'pacmax',    val:p=>p.pace,   ok:true},
+  {g:'Habilidades', k:'tech',   label:'Technique',         min:'tecmin',    max:'tecmax',    val:p=>p.tech},
+  {g:'Habilidades', k:'pass',   label:'Passing',           min:'pasmin',    max:'pasmax',    val:p=>p.pass},
+  {g:'Habilidades', k:'gk',     label:'Keeper',            min:'keemin',    max:'keemax',    val:p=>p.gk,     ok:true},
+  {g:'Habilidades', k:'def',    label:'Defender',          min:'defmin',    max:'defmax',    val:p=>p.def,    ok:true},
+  {g:'Habilidades', k:'pm',     label:'Playmaker',         min:'plamin',    max:'plamax',    val:p=>p.pm},
+  {g:'Habilidades', k:'str',    label:'Striker',           min:'attmin',    max:'attmax',    val:p=>p.str,    ok:true},
+  {g:'Sum-skills',  k:'full',   label:'Full',              min:'fullssmin', max:'fullssmax', val:p=>p.ssFull},
+  {g:'Sum-skills',  k:'ssdef',  label:'Def',               min:'defssmin',  max:'defssmax',  val:p=>p.ssDef,  ok:true},
+  {g:'Sum-skills',  k:'ssdefsd',label:'Def sides',         min:'defsdmin',  max:'defsdmax',  val:p=>p.ssDefSd,ok:true},
+  {g:'Sum-skills',  k:'ssmid',  label:'Mid',               min:'midssmin',  max:'midssmax',  val:p=>p.ssMid},
+  {g:'Sum-skills',  k:'sswing', label:'Wing',              min:'wingssmin', max:'wingssmax', val:p=>p.ssWing, ok:true},
+  {g:'Sum-skills',  k:'ssatt',  label:'Att',               min:'attssmin',  max:'attssmax',  val:p=>p.ssAtt,  ok:true},
+  {g:'Sum-skills',  k:'ssattsd',label:'Att sides',         min:'attsdmin',  max:'attsdmax',  val:p=>p.ssAttSd},
+  {g:'Otros',       k:'nat',    label:'País',              ok:true},
+  {g:'Otros',       k:'pid',    label:'PID',               ok:true}
+];
+const TOLS = [0,1,2,3,4,5,7,10];
+let extras = [];   // [{k, t}] t = tolerancia (o id de país para 'nat')
+const extraDef = k => EXTRA_PARAMS.find(e=>e.k===k);
 
 const SKILLS = [['stam','stamina'],['pace','pace'],['tech','technique'],['pass','passing'],['gk','keeper'],['def','defender'],['pm','playmaker'],['str','striker']];
 
@@ -370,7 +411,7 @@ function weekValue(){
 
 function buildUrl(live, page){
   const p = player, tol = TOL[pos];
-  const q = [];
+  let q = [];
   const s = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
   if(pos==='PID'){
     if(!live) q.push(['ssnsto', s]);
@@ -396,13 +437,83 @@ function buildUrl(live, page){
       }
     }
   }
+  // Parámetros adicionales: reemplazan al criterio equivalente de la búsqueda base
+  for(const e of extras){
+    const pr = extraPairs(e);
+    if(!pr) continue;
+    const names = pr.map(x=>x[0]);
+    q = q.filter(([n])=>!names.includes(n));
+    q.push(...pr);
+  }
   q.push(['order', $(live?'orderLive':'orderDb').value]);
   let str = q.map(([k,v])=>k+'='+Math.max(0,v)).join('&');
   if(live) str += '&orderasc=on';
   str += '&page=' + page;
-  const extra = $('extra').value.trim().replace(/^[?&]+/,'');
-  if(extra) str += '&' + extra;
   return (live?BASE_LIVE:BASE_DB)+'?'+str;
+}
+
+function extraPairs(e){
+  const d = extraDef(e.k);
+  if(!d) return null;
+  if(e.k==='nat') return e.t ? [['nat', e.t]] : null;
+  if(e.k==='pid') return hasPid() ? [['pid', player.pid]] : null;
+  const v = player ? d.val(player) : undefined;
+  if(v===undefined || v===null || Number.isNaN(v)) return null;
+  const t = Math.max(0, parseInt(e.t,10)||0);
+  return [[d.min, Math.max(0, v-t)], [d.max, v+t]];
+}
+
+function renderAdded(){
+  const box = $('extraList'); box.innerHTML = '';
+  extras.forEach((e,i)=>{
+    const d = extraDef(e.k);
+    let txt, applies = !!extraPairs(e);
+    if(e.k==='nat') txt = 'País: '+((COUNTRIES.find(c=>String(c[0])===String(e.t))||[])[1] || '?');
+    else if(e.k==='pid') txt = 'PID: '+(hasPid() ? player.pid : '—');
+    else{
+      const v = player ? d.val(player) : undefined, t = parseInt(e.t,10)||0;
+      txt = d.label + (v===undefined||v===null||Number.isNaN(v) ? ' ±'+t : ': '+v+' ±'+t+' → '+Math.max(0,v-t)+' a '+(v+t)) + (d.ok ? '' : ' *');
+    }
+    const row = document.createElement('div'); row.className = 'sitem';
+    const info = document.createElement('div');
+    const b = document.createElement('b'); b.textContent = txt; info.appendChild(b);
+    if(!applies){ const w = document.createElement('small'); w.textContent = 'No se aplica por ahora: falta el dato en el Paso 1.'; info.appendChild(w); }
+    const rm = document.createElement('button'); rm.type='button'; rm.textContent='✕ Quitar'; rm.title='Quitar parámetro';
+    rm.addEventListener('click',()=>{ extras.splice(i,1); $('extraMsg').textContent=''; refresh(); saveSettings(); });
+    row.append(info, rm); box.appendChild(row);
+  });
+}
+
+let COUNTRY_OPTS = '';
+function setTolFor(k){
+  const t = $('extraTol');
+  if(!k){ t.innerHTML = '<option value="">Tolerancia</option>'; t.disabled = true; return; }
+  if(k==='nat'){ t.innerHTML = COUNTRY_OPTS; t.disabled = false; return; }
+  if(k==='pid'){ t.innerHTML = '<option value="">sin tolerancia</option>'; t.disabled = true; return; }
+  t.innerHTML = TOLS.map(n=>`<option value="${n}"${n===1?' selected':''}>${n===0?'Exacto (±0)':'±'+n}</option>`).join('');
+  t.disabled = false;
+}
+function buildExtraRow(){
+  const sel = $('extraKey');
+  let html = '<option value="">— elige un parámetro —</option>', g = '';
+  for(const d of EXTRA_PARAMS){
+    if(d.g!==g){ if(g) html += '</optgroup>'; html += '<optgroup label="'+d.g+'">'; g = d.g; }
+    html += '<option value="'+d.k+'">'+d.label+(d.ok?'':' *')+'</option>';
+  }
+  sel.innerHTML = html + '</optgroup>';
+  setTolFor('');
+  sel.addEventListener('change',()=>{ $('extraMsg').textContent=''; setTolFor(sel.value); });
+  $('extraAdd').addEventListener('click',()=>{
+    const k = sel.value, m = $('extraMsg'), t = $('extraTol').value;
+    if(!k){ m.textContent = 'Elige un parámetro.'; return; }
+    if(k==='nat' && !t){ m.textContent = 'Elige un país.'; return; }
+    if(k==='pid' && !hasPid()){ m.textContent = 'Para usar PID es necesario ingresar el PID en el Paso 1.'; return; }
+    extras = extras.filter(e=>e.k!==k);
+    extras.push({k, t: k==='pid' ? '' : t});
+    sel.value = ''; setTolFor('');   // queda lista una nueva fila de desplegables
+    m.textContent = 'Parámetro añadido.';
+    refresh(); saveSettings();
+  });
 }
 
 function refresh(){
@@ -427,6 +538,7 @@ function refresh(){
     if(u) a.href = u; else a.removeAttribute('href');
     for(const b of ['load','copy']) $(b+k).disabled = !ok;
   }
+  renderAdded();
 }
 
 function renderSummary(){
@@ -726,7 +838,7 @@ async function loadPage(k, page){
       if(page===1){ showNoMatch(k); noMore = true; }
       else st.textContent = 'No hay más páginas (la '+(page-1)+' es la última).';
     }else{
-      st.textContent = 'No se pudo cargar dentro de la página. Usa “Abrir en pestaña nueva”. Detalle: '+e.message;
+      st.textContent = 'No se pudo cargar dentro de la página. Usa “Geston Website”. Detalle: '+e.message;
     }
   }
   $('load'+k).disabled=false; $('prev'+k).disabled = cur[k]<=1; $('next'+k).disabled = noMore;
@@ -771,6 +883,16 @@ let searches = [];
 function loadSearches(){ try{ const a = JSON.parse(localStorage.getItem(SAVE_KEY)||'[]'); searches = Array.isArray(a) ? a.map(cleanSearch).filter(Boolean) : []; }catch{ searches = []; } }
 function storeSearches(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(searches)); return true; }catch{ return false; } }
 
+function cleanExtra(x){
+  if(!x || typeof x!=='object') return null;
+  const d = extraDef(x.k);
+  if(!d) return null;
+  if(d.k==='nat') return COUNTRIES.some(c=>String(c[0])===String(x.t)) ? {k:'nat', t:String(x.t)} : null;
+  if(d.k==='pid') return {k:'pid', t:''};
+  const n = parseInt(x.t,10);
+  return {k:d.k, t:String(Number.isFinite(n) && n>=0 && n<=20 ? n : 1)};
+}
+
 function cleanSearch(o){
   if(!o || typeof o!=='object') return null;
   const str = (v,n)=> typeof v==='string' ? v.slice(0,n) : '';
@@ -787,13 +909,13 @@ function cleanSearch(o){
     nat: COUNTRIES.some(c=>String(c[0])===String(o.nat)) ? String(o.nat) : '',
     orderDb: num(o.orderDb,1,3,'1'),
     orderLive: num(o.orderLive,1,3,'2'),
-    extra: str(o.extra,300)
+    extras: Array.isArray(o.extras) ? o.extras.slice(0,20).map(cleanExtra).filter(Boolean) : []
   };
 }
 
 function currentState(){
   return {type:pos, season:$('season').value, window:$('window').value, curr:$('curr').value,
-    week:$('weekIn').value, nat:$('nat').value, orderDb:$('orderDb').value, orderLive:$('orderLive').value, extra:$('extra').value};
+    week:$('weekIn').value, nat:$('nat').value, orderDb:$('orderDb').value, orderLive:$('orderLive').value, extras: extras.map(e=>({...e}))};
 }
 
 const TYPE_LABEL = {GK:'GK',DEF:'DEF',MID:'MID',ATT:'ATT',PID:'PID',PAIS:'PAÍS'};
@@ -857,8 +979,8 @@ async function importSearches(file){
 
 /* ---------- Eventos ---------- */
 let weekAuto = false;
-const SAVED_FIELDS = ['season','window','curr','extra','orderDb','orderLive','proxy','nat'];
-function saveSettings(){ try{ const s={}; for(const i of SAVED_FIELDS) s[i]=$(i).value; localStorage.setItem('sokkerTransfers',JSON.stringify(s)); }catch{} }
+const SAVED_FIELDS = ['season','window','curr','orderDb','orderLive','proxy','nat'];
+function saveSettings(){ try{ const s={}; for(const i of SAVED_FIELDS) s[i]=$(i).value; s.extras = extras; localStorage.setItem('sokkerTransfers',JSON.stringify(s)); }catch{} }
 
 function onPaste(fromLoad){
   const t = $('paste').value.trim();
@@ -872,10 +994,22 @@ function onPaste(fromLoad){
 }
 
 function applyState(st){
-  for(const id of ['season','window','curr','nat','orderDb','orderLive','extra']) $(id).value = st[id];
+  for(const id of ['season','window','curr','nat','orderDb','orderLive']) $(id).value = st[id];
+  extras = (st.extras||[]).map(cleanExtra).filter(Boolean);
   $('weekIn').value = st.week; weekAuto = false;
   saveSettings();
   setPos(st.type);
+}
+
+// Valores por defecto de la búsqueda (la dirección del proxy no es un parámetro de búsqueda y se conserva)
+const DEFAULTS = {season:'79', window:'2', curr:'13', nat:'', orderDb:'1', orderLive:'2'};
+function resetAll(){
+  if(!confirm('¿Reiniciar la búsqueda?\n\nTodos los parámetros de búsqueda volverán a sus valores por defecto, incluyendo los datos del Paso 1.')) return;
+  $('paste').value = ''; $('weekIn').value = ''; weekAuto = false;
+  for(const id in DEFAULTS) $(id).value = DEFAULTS[id];
+  extras = []; $('extraKey').value = ''; setTolFor(''); $('extraMsg').textContent = '';
+  $('saveName').value = '';
+  onPaste(true); saveSettings(); setPos('GK');
 }
 
 function init(){
@@ -883,9 +1017,12 @@ function init(){
   $('curr').value = '13';
   const coll = new Intl.Collator('es', {sensitivity:'base'});
   $('nat').innerHTML = '<option value="">— elige un país —</option>' + [...COUNTRIES].sort((a,b)=>coll.compare(a[1],b[1])).map(([id,n])=>`<option value="${id}">${n}</option>`).join('');
+  COUNTRY_OPTS = '<option value="">— elige un país —</option>' + [...COUNTRIES].sort((a,b)=>coll.compare(a[1],b[1])).map(([id,n])=>`<option value="${id}">${n}</option>`).join('');
+  buildExtraRow();
   try{
     const s = JSON.parse(localStorage.getItem('sokkerTransfers')||'{}');
     for(const id of SAVED_FIELDS) if(s[id]!==undefined) $(id).value = s[id];
+    if(Array.isArray(s.extras)) extras = s.extras.map(cleanExtra).filter(Boolean);
   }catch{}
 
   $('paste').addEventListener('input', ()=>onPaste(false));
@@ -932,6 +1069,8 @@ function init(){
       $(b).setAttribute('aria-expanded', open); $(b).textContent = (open?'▾ ':'▸ ')+icon+' '+txt;
     });
   }
+  $('resetBtn1').addEventListener('click', resetAll);
+  $('resetBtn2').addEventListener('click', resetAll);
   $('saveBtn').addEventListener('click', saveCurrent);
   $('exportBtn').addEventListener('click', exportSearches);
   $('importBtn').addEventListener('click', ()=>$('importFile').click());
