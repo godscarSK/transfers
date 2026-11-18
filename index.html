@@ -300,6 +300,7 @@ const EXTRA_PARAMS = [
   {g:'Sum-skills',  k:'sswing', label:'Wing',              min:'wingssmin', max:'wingssmax', val:p=>p.ssWing, ok:true},
   {g:'Sum-skills',  k:'ssatt',  label:'Att',               min:'attssmin',  max:'attssmax',  val:p=>p.ssAtt,  ok:true},
   {g:'Sum-skills',  k:'ssattsd',label:'Att sides',         min:'attsdmin',  max:'attsdmax',  val:p=>p.ssAttSd,ok:true},
+  {g:'Otros',       k:'week',   label:'Semana (week)',     min:'weekfr',    max:'weekto',    val:()=>weekValue(), ok:true},
   {g:'Otros',       k:'nat',    label:'País',              ok:true},
   {g:'Otros',       k:'pid',    label:'PID',               ok:true}
 ];
@@ -439,7 +440,7 @@ function buildUrl(live, page){
   }
   // Parámetros adicionales: reemplazan al criterio equivalente de la búsqueda base
   for(const e of extras){
-    const pr = extraPairs(e);
+    const pr = extraPairs(e, live);
     if(!pr) continue;
     const names = pr.map(x=>x[0]);
     q = q.filter(([n])=>!names.includes(n));
@@ -452,9 +453,14 @@ function buildUrl(live, page){
   return (live?BASE_LIVE:BASE_DB)+'?'+str;
 }
 
-function extraPairs(e){
+function extraPairs(e, live){
   const d = extraDef(e.k);
   if(!d) return null;
+  if(e.k==='week'){
+    const wk = weekValue(); if(wk===null || live) return null;
+    const t = Math.max(0, parseInt(e.t,10)||0);
+    return [['weekfr', Math.max(1, wk-t)], ['weekto', Math.min(13, wk+t)]];
+  }
   if(e.k==='nat') return e.t ? [['nat', e.t]] : null;
   if(e.k==='pid') return hasPid() ? [['pid', player.pid]] : null;
   const v = player ? d.val(player) : undefined;
@@ -472,12 +478,13 @@ function renderAdded(){
     else if(e.k==='pid') txt = 'PID: '+(hasPid() ? player.pid : '—');
     else{
       const v = player ? d.val(player) : undefined, t = parseInt(e.t,10)||0;
-      txt = d.label + (v===undefined||v===null||Number.isNaN(v) ? ' ±'+t : ': '+v+' ±'+t+' → '+Math.max(0,v-t)+' a '+(v+t)) + (d.ok ? '' : ' *');
+      if(e.k==='week') txt = 'Semana: '+(v===null?'—':v+' ±'+t+' → '+Math.max(1,v-t)+' a '+Math.min(13,v+t));
+      else txt = d.label + (v===undefined||v===null||Number.isNaN(v) ? ' ±'+t : ': '+v+' ±'+t+' → '+Math.max(0,v-t)+' a '+(v+t)) + (d.ok ? '' : ' *');
     }
     const row = document.createElement('div'); row.className = 'sitem';
     const info = document.createElement('div');
     const b = document.createElement('b'); b.textContent = txt; info.appendChild(b);
-    if(!applies){ const w = document.createElement('small'); w.textContent = 'No se aplica por ahora: falta el dato en el Paso 1.'; info.appendChild(w); }
+    if(!applies){ const w = document.createElement('small'); w.textContent = 'No se aplica por ahora: '+(e.k==='week' ? 'falta la semana de referencia en el Paso 2.' : 'falta el dato en el Paso 1.'); info.appendChild(w); }
     const rm = document.createElement('button'); rm.type='button'; rm.textContent='✕ Quitar'; rm.title='Quitar parámetro';
     rm.addEventListener('click',()=>{ extras.splice(i,1); $('extraMsg').textContent=''; refresh(); saveSettings(); });
     row.append(info, rm); box.appendChild(row);
@@ -508,6 +515,7 @@ function buildExtraRow(){
     if(!k){ m.textContent = 'Elige un parámetro.'; return; }
     if(k==='nat' && !t){ m.textContent = 'Elige un país.'; return; }
     if(k==='pid' && !hasPid()){ m.textContent = 'Para usar PID es necesario ingresar el PID en el Paso 1.'; return; }
+    if(k==='week' && weekValue()===null){ m.textContent = 'Para usar la semana es necesario indicar la semana de referencia (1 a 13) en el Paso 2.'; return; }
     extras = extras.filter(e=>e.k!==k);
     extras.push({k, t: k==='pid' ? '' : t});
     sel.value = ''; setTolFor('');   // queda lista una nueva fila de desplegables
@@ -1081,6 +1089,20 @@ function init(){
 init();
 
 /* ---------- Actualizar temporada desde Geston (máximo del campo ssnsto) ---------- */
+const SEASON_KEY = 'sokkerSeasonCheck';
+const pad2 = n => String(n).padStart(2,'0');
+const ymd = d => d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+// Sábado más reciente (hoy mismo si es sábado), en hora local
+function lastSaturday(now){ const d = new Date(now.getFullYear(), now.getMonth(), now.getDate()); d.setDate(d.getDate() - ((d.getDay()+1)%7)); return d; }
+function seasonCheckDue(now){
+  let rec = null; try{ rec = localStorage.getItem(SEASON_KEY); }catch{}
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(rec||'');
+  if(!m) return true;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const last = new Date(+m[1], +m[2]-1, +m[3]);
+  if(today.getDay()===6) return ymd(last)!==ymd(today);
+  return Math.round((today-last)/86400000) > 6;
+}
 async function updateSeason(){
   const msg=$('seasonMsg'), btn=$('seasonBtn');
   const url='https://geston.smallhost.pl/sokker/transfers_db.php';
@@ -1097,13 +1119,15 @@ async function updateSeason(){
       const doc=new DOMParser().parseFromString(html,'text/html');
       const el=doc.querySelector('#ssnsto')||doc.querySelector('input[name="ssnsto"]');
       const mx=el&&parseInt(el.getAttribute('max'));
-      if(mx>0){ $('season').value=mx; $('season').dispatchEvent(new Event('input',{bubbles:true})); msg.textContent='Temporada actual: '+mx; ok=true; break; }
+      if(mx>0){ try{ localStorage.setItem(SEASON_KEY, ymd(lastSaturday(new Date()))); }catch{}
+        $('season').value=mx; $('season').dispatchEvent(new Event('input',{bubbles:true})); msg.textContent='Temporada actual: '+mx; ok=true; break; }
     }catch(e){}
   }
   if(!ok){ msg.style.color='#c62828'; msg.textContent='No se pudo leer (revisa el proxy en Configuración Avanzada).'; }
   btn.disabled=false;
 }
 $('seasonBtn').addEventListener('click',updateSeason);
+if(seasonCheckDue(new Date())) updateSeason();
 </script>
 </body>
 </html>
