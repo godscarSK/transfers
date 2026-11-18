@@ -160,6 +160,7 @@
       </div>
       <span id="posHelp" style="color:var(--muted);font-size:.88rem"></span>
     </div>
+    <div id="ignoreHelp" class="status hide" style="margin:-4px 0 12px">No usa ningún dato del Paso 1 + solo temporadas, moneda y parámetros adicionales (por ejemplo país o rango de edad).</div>
     <div id="typeMsg" class="err hide" style="margin:-4px 0 12px"></div>
     <div class="grid">
       <div><label for="season">Temporada actual</label><div class="row" style="gap:6px;flex-wrap:nowrap"><input id="season" type="number" min="1" value="79"><button type="button" id="seasonBtn" title="Lee la temporada máxima desde Geston">Actualizar</button></div><div id="seasonMsg" style="font-size:.82rem;margin-top:4px;color:var(--muted)"></div></div>
@@ -323,7 +324,7 @@ const POS_HELP = {
   MID: 'misma edad + defender ±1 + wing SS igual + striker máximo 10',
   ATT: 'misma edad + att SS igual + att sides ±3',
   PID: 'todas las transferencias de un único jugador (por su PID) + hasta la temporada actual (no usa edad ni habilidades)',
-  PAIS:'no usa ningún dato del Paso 1 + solo temporadas, moneda y parámetros adicionales (por ejemplo país o rango de edad)'
+  PAIS:''
 };
 
 const $ = id => document.getElementById(id);
@@ -415,7 +416,7 @@ function weekValue(){
   return Number.isInteger(n) && n>=1 && n<=13 ? n : null;
 }
 
-function buildUrl(live, page){
+function buildPairs(live){
   const p = player, tol = TOL[pos];
   let q = [];
   const s = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
@@ -450,11 +451,51 @@ function buildUrl(live, page){
     q = q.filter(([n])=>!names.includes(n));
     q.push(...pr);
   }
+  return q;
+}
+function buildUrl(live, page){
+  const q = buildPairs(live);
   q.push(['order', $(live?'orderLive':'orderDb').value]);
   let str = q.map(([k,v])=>k+'='+Math.max(0,v)).join('&');
   if(live) str += '&orderasc=on';
   str += '&page=' + page;
   return (live?BASE_LIVE:BASE_DB)+'?'+str;
+}
+
+// Criterios explícitos de la búsqueda, leídos de los mismos parámetros que lleva el enlace de Transfers DB
+const CRIT_NAMES = {age:'edad',form:'forma',sta:'stamina',pac:'pace',tec:'technique',pas:'passing',kee:'keeper',def:'defender',mid:'playmaker',att:'striker',ss:'full',defss:'def SS',defsd:'def sides',midss:'mid SS',wingss:'wing SS',attss:'att SS',attsd:'att sides',week:'semana'};
+function criteriaLines(){
+  const q = buildPairs(false), m = {}, lines = [];
+  for(const [k,v] of q) m[k] = v;
+  const done = new Set();
+  const range = (base,label)=>{
+    const lo = m[base+'min'] ?? m[base+'fr'], hi = m[base+'max'] ?? m[base+'to'];
+    done.add(base+'min'); done.add(base+'max'); done.add(base+'fr'); done.add(base+'to');
+    if(lo===undefined && hi===undefined) return;
+    if(lo!==undefined && hi!==undefined) lines.push(lo===hi ? label+' igual a '+lo : label+' de '+lo+' a '+hi);
+    else if(hi!==undefined) lines.push(label+' máximo '+hi);
+    else lines.push(label+' mínimo '+lo);
+  };
+  if(m.ssnsfr!==undefined) lines.push('temporadas '+m.ssnsfr+' a '+m.ssnsto);
+  else if(m.ssnsto!==undefined) lines.push('hasta la temporada '+m.ssnsto);
+  done.add('ssnsfr'); done.add('ssnsto');
+  range('week','semanas');
+  if(m.curr!==undefined) lines.push('moneda '+(CURRENCIES[m.curr-1]||m.curr));
+  done.add('curr');
+  if(m.pid!==undefined) lines.push('PID '+m.pid);
+  if(m.nat!==undefined) lines.push('país '+((COUNTRIES.find(c=>String(c[0])===String(m.nat))||[])[1]||m.nat));
+  const order = ['age','form','sta','pac','tec','pas','kee','def','mid','att','ss','defss','defsd','midss','wingss','attss','attsd'];
+  // las abreviaturas de Geston (stam→sta, etc.) se resuelven por prefijo
+  const alias = {age:'age',form:'form',sta:'sta',pac:'pac',tec:'tec',pas:'pas',kee:'kee',def:'def',mid:'mid',att:'att',ss:'ss',defss:'defss',defsd:'defsd',midss:'midss',wingss:'wingss',attss:'attss',attsd:'attsd'};
+  for(const b of order) range(alias[b], CRIT_NAMES[b]);
+  return lines;
+}
+function renderCriteria(ok){
+  let lines;
+  try{ lines = ok ? criteriaLines() : null; }catch{ lines = null; }
+  if(!lines) lines = (POS_HELP[pos]||'').split(' + ').filter(Boolean);
+  const html = '<b>Criterio de búsqueda:</b>' + lines.map(l=>'<br><i>+ '+l.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</i>').join('');
+  $('tolDesc').innerHTML = $('tolDesc3').innerHTML = html;
 }
 
 function extraPairs(e, live){
@@ -555,6 +596,8 @@ function refresh(){
   if(pos==='PAIS') ok = true;
   else if(pos==='PID') ok = pidOk;
   else ok = !!(player && !player.missing.length && !(pos==='GK' && player.gk===undefined));
+  renderCriteria(ok);
+  $('ignoreHelp').classList.toggle('hide', pos!=='PAIS');
   for(const k of ['Db','Live']){
     const u = ok ? buildUrl(k==='Live', 1) : '';
     $('url'+k).textContent = u || '—';
@@ -610,7 +653,6 @@ function setPos(p){
   document.querySelectorAll('#posSeg button, .posq button').forEach(b=>b.classList.toggle('on', b.dataset.pos===p));
   $('posHelp').textContent = '';
   $('typeMsg').classList.add('hide');
-  $('tolDesc').innerHTML = $('tolDesc3').innerHTML = '<b>Criterio de búsqueda:</b> <i>' + POS_HELP[p] + '</i>';
   if(player) renderSummary();
   refresh();
 }
