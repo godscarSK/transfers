@@ -156,7 +156,7 @@
         <button data-pos="MID">MID</button>
         <button data-pos="ATT">ATT</button>
         <button data-pos="PID" id="pidBtn">PID</button>
-        <button data-pos="PAIS">PAÍS</button>
+        <button data-pos="PAIS">IGNORAR PASO 1</button>
       </div>
       <span id="posHelp" style="color:var(--muted);font-size:.88rem"></span>
     </div>
@@ -173,10 +173,7 @@
         <span id="weekHint" style="color:var(--muted);font-size:.88rem"></span>
       </div>
     </div>
-    <div class="row hide" id="natRow" style="margin-top:12px">
-      <label for="nat" style="margin:0">País</label>
-      <select id="nat" style="max-width:300px"></select>
-    </div>
+    <div class="hide"><select id="nat"></select></div>
     <div class="desc crit" id="tolDesc"></div>
     <div class="row" style="margin-top:16px;justify-content:space-between">
       <span class="row">
@@ -321,12 +318,12 @@ const SKILLS = [['stam','stamina'],['pace','pace'],['tech','technique'],['pass',
 // Tolerancias fijas (las mismas del Excel)
 const TOL = {GK:1, DEF:2, MID:1, ATT:3};
 const POS_HELP = {
-  GK:  'Portero: misma edad, mismo keeper y velocidad (pace) con tolerancia de ±1.',
-  DEF: 'Defensa: misma edad, def SS igual, def sides con tolerancia de ±2 y striker máximo 10.',
-  MID: 'Mediocampista: misma edad, defender con tolerancia de ±1, wing SS igual y striker máximo 10.',
-  ATT: 'Atacante: misma edad, att SS igual y att sides con tolerancia de ±3.',
-  PID: 'PID: todas las transferencias de un único jugador (por su PID) hasta la temporada actual. No usa edad ni habilidades.',
-  PAIS:'País: busca jugadores del país elegido, ignorando los datos del Paso 1.'
+  GK:  'misma edad + mismo keeper + pace ±1',
+  DEF: 'misma edad + def SS igual + def sides ±2 + striker máximo 10',
+  MID: 'misma edad + defender ±1 + wing SS igual + striker máximo 10',
+  ATT: 'misma edad + att SS igual + att sides ±3',
+  PID: 'todas las transferencias de un único jugador (por su PID) + hasta la temporada actual (no usa edad ni habilidades)',
+  PAIS:'no usa ningún dato del Paso 1 + solo temporadas, moneda y parámetros adicionales (por ejemplo país o rango de edad)'
 };
 
 const $ = id => document.getElementById(id);
@@ -432,8 +429,7 @@ function buildUrl(live, page){
       if(wk!==null && POSITIONAL.includes(pos)) q.push(['weekfr', Math.max(1, wk-2)], ['weekto', Math.min(13, wk+2)]);
     }
     q.push(['curr', $('curr').value]);
-    if(pos==='PAIS'){ q.push(['nat', $('nat').value]); }
-    else{
+    if(pos!=='PAIS'){
       q.push(['agemin', p.age], ['agemax', p.age]);
       if(pos==='GK'){
         q.push(['pacmin',p.pace-tol],['pacmax',p.pace+tol],['keemin',p.gk],['keemax',p.gk]);
@@ -471,6 +467,7 @@ function extraPairs(e, live){
     return [['weekfr', Math.max(1, wk-t)], ['weekto', Math.min(13, wk+t)]];
   }
   if(e.k==='nat') return e.t ? [['nat', e.t]] : null;
+  if(pos==='PAIS' && e.k!=='week') return null;   // IGNORAR PASO 1: sin datos del jugador
   if(e.k==='pid') return hasPid() ? [['pid', player.pid]] : null;
   const v = player ? d.val(player) : undefined;
   if(v===undefined || v===null || Number.isNaN(v)) return null;
@@ -494,7 +491,7 @@ function renderAdded(){
     const row = document.createElement('div'); row.className = 'sitem';
     const info = document.createElement('div');
     const b = document.createElement('b'); b.textContent = txt; info.appendChild(b);
-    if(!applies){ const w = document.createElement('small'); w.textContent = 'No se aplica por ahora: '+(e.k==='week' ? 'falta la semana de referencia en el Paso 2.' : 'falta el dato en el Paso 1.'); info.appendChild(w); }
+    if(!applies){ const w = document.createElement('small'); w.textContent = 'No se aplica por ahora: '+(e.k==='week' ? 'falta la semana de referencia en el Paso 2.' : pos==='PAIS' ? 'IGNORAR PASO 1 no usa datos del jugador.' : 'falta el dato en el Paso 1.'); info.appendChild(w); }
     const rm = document.createElement('button'); rm.type='button'; rm.textContent='✕ Quitar'; rm.title='Quitar parámetro';
     rm.addEventListener('click',()=>{ extras.splice(i,1); $('extraMsg').textContent=''; refresh(); saveSettings(); });
     row.append(info, rm); box.appendChild(row);
@@ -551,12 +548,11 @@ function refresh(){
   $('pidBtn').textContent = pidOk ? 'PID' : 'PID 🔒';
   const tm = $('typeMsg');
   if(pos==='PID' && !pidOk){ tm.textContent = 'Para buscar por PID es necesario ingresar el PID del jugador en el Paso 1.'; tm.classList.remove('hide'); }
-  $('natRow').classList.toggle('hide', pos!=='PAIS');
   // Pista de la semana
   const wk = weekValue(), raw = $('weekIn').value.trim();
   $('weekHint').textContent = raw==='' ? '' : wk===null ? 'Ingresa un número entero de 1 a 13.' : 'Semanas '+Math.max(1,wk-2)+' a '+Math.min(13,wk+2);
   let ok;
-  if(pos==='PAIS') ok = !!$('nat').value;
+  if(pos==='PAIS') ok = true;
   else if(pos==='PID') ok = pidOk;
   else ok = !!(player && !player.missing.length && !(pos==='GK' && player.gk===undefined));
   for(const k of ['Db','Live']){
@@ -614,7 +610,7 @@ function setPos(p){
   document.querySelectorAll('#posSeg button, .posq button').forEach(b=>b.classList.toggle('on', b.dataset.pos===p));
   $('posHelp').textContent = '';
   $('typeMsg').classList.add('hide');
-  $('tolDesc').innerHTML = $('tolDesc3').innerHTML = '<b>Criterio de búsqueda:</b> ' + POS_HELP[p];
+  $('tolDesc').innerHTML = $('tolDesc3').innerHTML = '<b>Criterio de búsqueda:</b> <i>' + POS_HELP[p] + '</i>';
   if(player) renderSummary();
   refresh();
 }
@@ -926,6 +922,7 @@ function cleanSearch(o){
   if(!o || typeof o!=='object') return null;
   const str = (v,n)=> typeof v==='string' ? v.slice(0,n) : '';
   const num = (v,min,max,def)=>{ const n = parseInt(v,10); return Number.isFinite(n) && n>=min && n<=max ? String(n) : def; };
+  const legacyNat = o.type==='PAIS' && COUNTRIES.some(c=>String(c[0])===String(o.nat)) && !(Array.isArray(o.extras) && o.extras.some(x=>x&&x.k==='nat')) ? [{k:'nat', t:String(o.nat)}] : [];
   return {
     id: str(o.id,40) || newId(),
     name: str(o.name,80).trim() || 'Búsqueda',
@@ -938,7 +935,7 @@ function cleanSearch(o){
     nat: COUNTRIES.some(c=>String(c[0])===String(o.nat)) ? String(o.nat) : '',
     orderDb: num(o.orderDb,1,3,'1'),
     orderLive: num(o.orderLive,1,3,'2'),
-    extras: Array.isArray(o.extras) ? o.extras.slice(0,20).map(cleanExtra).filter(Boolean) : []
+    extras: [...(Array.isArray(o.extras) ? o.extras.slice(0,20) : []), ...legacyNat].map(cleanExtra).filter(Boolean)
   };
 }
 
@@ -947,7 +944,7 @@ function currentState(){
     week:$('weekIn').value, nat:$('nat').value, orderDb:$('orderDb').value, orderLive:$('orderLive').value, extras: extras.map(e=>({...e}))};
 }
 
-const TYPE_LABEL = {GK:'GK',DEF:'DEF',MID:'MID',ATT:'ATT',PID:'PID',PAIS:'PAÍS'};
+const TYPE_LABEL = {GK:'GK',DEF:'DEF',MID:'MID',ATT:'ATT',PID:'PID',PAIS:'IGNORAR PASO 1'};
 function renderSaved(){
   const box = $('savedList'); box.innerHTML = '';
   if(!searches.length){ const e = document.createElement('div'); e.className='status'; e.textContent='Aún no hay búsquedas guardadas.'; box.appendChild(e); return; }
@@ -957,7 +954,7 @@ function renderSaved(){
     const nm = document.createElement('b'); nm.textContent = s.name;
     const meta = document.createElement('small');
     const natName = (COUNTRIES.find(c=>String(c[0])===s.nat)||[])[1];
-    meta.textContent = TYPE_LABEL[s.type] + (s.type==='PAIS' && natName ? ' · '+natName : '') + ' · guardada '+new Date(s.savedAt).toLocaleString('es-CL',{dateStyle:'short',timeStyle:'short'});
+    meta.textContent = TYPE_LABEL[s.type] + ' · guardada '+new Date(s.savedAt).toLocaleString('es-CL',{dateStyle:'short',timeStyle:'short'});
     info.append(nm, meta);
     const acts = document.createElement('div'); acts.className='row';
     const ld = document.createElement('button'); ld.type='button'; ld.textContent='Cargar'; ld.addEventListener('click',()=>{ applyState(s); $('savedMsg').textContent = 'Búsqueda “'+s.name+'” cargada.'; });
@@ -972,7 +969,7 @@ function renderSaved(){
 function saveCurrent(){
   const st = currentState();
   const natName = (COUNTRIES.find(c=>String(c[0])===st.nat)||[])[1];
-  const auto = TYPE_LABEL[pos] + (pos==='PAIS' && natName ? ' · '+natName : '') + ' · temp. '+st.season;
+  const auto = TYPE_LABEL[pos] + ' · temp. '+st.season;
   const entry = cleanSearch({...st, id:newId(), savedAt:Date.now(), name: $('saveName').value.trim() || auto});
   searches.unshift(entry);
   $('saveName').value = '';
