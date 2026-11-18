@@ -7,10 +7,10 @@
 <style>
   :root{
     --bg:#f4f6f3; --card:#fff; --ink:#1c2a22; --muted:#5f6f65; --line:#dbe3dc;
-    --accent:#1f7a4a; --accent-ink:#fff; --accent-soft:#e3f2e9; --warn:#a15c00;
+    --accent:#1f7a4a; --accent-ink:#fff; --accent-soft:#e3f2e9; --warn:#a15c00; --bad:#c62828; --purple:#7b3fa0;
   }
   @media (prefers-color-scheme:dark){
-    :root{--bg:#0f1713;--card:#17221c;--ink:#e6efe9;--muted:#93a79b;--line:#2a3a31;--accent:#3fb26f;--accent-ink:#06150d;--accent-soft:#1d3327;--warn:#e0a24a}
+    :root{--bg:#0f1713;--card:#17221c;--ink:#e6efe9;--muted:#93a79b;--line:#2a3a31;--accent:#3fb26f;--accent-ink:#06150d;--accent-soft:#1d3327;--warn:#e0a24a; --bad:#ff6b6b; --purple:#b78be0}
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -34,7 +34,8 @@
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;justify-content:center}
   .chip{background:var(--accent-soft);border-radius:999px;padding:3px 10px;font-size:.85rem}
   .chip b{font-variant-numeric:tabular-nums}
-  .err{color:var(--warn);font-size:.9rem;margin-top:8px}
+  .err,.bad{color:var(--bad)!important}
+  .err{font-size:.9rem;margin-top:8px}
   .url{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;word-break:break-all;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:8px 0}
   .status{font-size:.88rem;color:var(--muted);margin-top:8px}
   .tablewrap{overflow:auto;margin-top:10px;border:1px solid var(--line);border-radius:8px;max-height:75vh}
@@ -90,12 +91,17 @@
   .sitem small{color:var(--muted);display:block}
   .sitem button{padding:4px 10px;font-size:.85rem}
   .tgl{display:inline-flex;align-items:center;gap:8px;font-weight:700;border:1px solid transparent;border-radius:10px;padding:10px 16px}
-  .tgl.adv{background:#d9bf7a;color:#2b2410;border-color:#b79a4c}
-  .tgl.adv:hover{background:#cfb468;border-color:#9c8239}
+  .tgl.adv{background:#7b3fa0;color:#fff;border-color:#5f2d80}
+  .tgl.adv:hover{background:#68328a;border-color:#4d2268}
   .tgl.sav{background:#d9bf7a;color:#2b2410;border-color:#b79a4c}
   .tgl.sav:hover{background:#cfb468;border-color:#9c8239}
   .tgl[aria-expanded=true]{box-shadow:0 0 0 3px var(--accent-soft)}
   .panel{margin-top:14px;padding:14px;border:1px dashed var(--line);border-radius:10px}
+  #advPanel{border:2px solid #7b3fa0}
+  #savedPanel{border:2px solid #b79a4c}
+  @media (prefers-color-scheme:dark){.tgl.adv{background:#8a4fb0;border-color:#b78be0}#advPanel{border-color:#b78be0}#savedPanel{border-color:#d9bf7a}}
+  .desc.crit{background:none;text-align:center;color:#d97a00;font-weight:600}
+  @media (prefers-color-scheme:dark){.desc.crit{color:#ffa94d}}
   table.res .num{position:sticky;left:0;z-index:2;white-space:nowrap}
   table.res tbody td.num{background:var(--card);color:var(--muted);font-weight:600}
   table.res thead th.num{background:var(--accent-soft);z-index:4}
@@ -171,7 +177,7 @@
       <label for="nat" style="margin:0">País</label>
       <select id="nat" style="max-width:300px"></select>
     </div>
-    <div class="desc" id="tolDesc"></div>
+    <div class="desc crit" id="tolDesc"></div>
     <div class="row" style="margin-top:16px;justify-content:space-between">
       <span class="row">
         <button class="tgl adv" id="tglAdv" type="button" aria-expanded="false" aria-controls="advPanel">▸ ⚙ Configuración Avanzada</button>
@@ -188,6 +194,7 @@
         <div class="row" id="extraNew">
           <select id="extraKey" style="max-width:240px"></select>
           <select id="extraTol" style="max-width:200px" disabled></select>
+          <select id="extraTol2" style="max-width:200px" class="hide"></select>
           <button class="primary" id="extraAdd" type="button">Añadir Parámetro</button>
         </div>
         <div class="status" id="extraMsg"></div>
@@ -212,7 +219,7 @@
     </div>
   </section>
 
-  <section class="card sec-3"><h2 style="margin:0">PASO 3 - MOSTRAR RESULTADOS</h2></section>
+  <section class="card sec-3"><h2 style="margin:0">PASO 3 - MOSTRAR RESULTADOS</h2><div class="desc crit" id="tolDesc3"></div></section>
 
   <div class="two">
     <section class="card sec-db">
@@ -285,6 +292,7 @@ const COUNTRIES = [[89,"Al Maghrib"],[105,"al-Jazā’ir"],[71,"Andorra"],[19,"A
 const EXTRA_PARAMS = [
   {g:'Jugador',     k:'age',    label:'Edad (age)',        min:'agemin',    max:'agemax',    val:p=>p.age,    ok:true},
   {g:'Jugador',     k:'form',   label:'Forma (form)',      min:'formin',    max:'formax',    val:p=>p.form,   ok:true},
+  {g:'Jugador',     k:'agerange',label:'Rango Edad',      ok:true},
   {g:'Habilidades', k:'stam',   label:'Stamina',           min:'stamin',    max:'stamax',    val:p=>p.stam,   ok:true},
   {g:'Habilidades', k:'pace',   label:'Pace',              min:'pacmin',    max:'pacmax',    val:p=>p.pace,   ok:true},
   {g:'Habilidades', k:'tech',   label:'Technique',         min:'tecmin',    max:'tecmax',    val:p=>p.tech,   ok:true},
@@ -456,6 +464,7 @@ function buildUrl(live, page){
 function extraPairs(e, live){
   const d = extraDef(e.k);
   if(!d) return null;
+  if(e.k==='agerange'){ const a=parseInt(e.t,10), b=parseInt(e.t2,10); return a>=16 && b<=99 && b>=a ? [['agemin',a],['agemax',b]] : null; }
   if(e.k==='week'){
     const wk = weekValue(); if(wk===null || live) return null;
     const t = Math.max(0, parseInt(e.t,10)||0);
@@ -474,7 +483,8 @@ function renderAdded(){
   extras.forEach((e,i)=>{
     const d = extraDef(e.k);
     let txt, applies = !!extraPairs(e);
-    if(e.k==='nat') txt = 'País: '+((COUNTRIES.find(c=>String(c[0])===String(e.t))||[])[1] || '?');
+    if(e.k==='agerange') txt = 'Rango Edad: '+e.t+' a '+e.t2;
+    else if(e.k==='nat') txt = 'País: '+((COUNTRIES.find(c=>String(c[0])===String(e.t))||[])[1] || '?');
     else if(e.k==='pid') txt = 'PID: '+(hasPid() ? player.pid : '—');
     else{
       const v = player ? d.val(player) : undefined, t = parseInt(e.t,10)||0;
@@ -492,8 +502,11 @@ function renderAdded(){
 }
 
 let COUNTRY_OPTS = '';
+const ageOpts = ph => '<option value="">'+ph+'</option>' + Array.from({length:84},(_,i)=>`<option value="${16+i}">${16+i}</option>`).join('');
 function setTolFor(k){
-  const t = $('extraTol');
+  const t = $('extraTol'), t2 = $('extraTol2');
+  t2.classList.toggle('hide', k!=='agerange');
+  if(k==='agerange'){ t.innerHTML = ageOpts('Edad mínima'); t2.innerHTML = ageOpts('Edad máxima'); t.disabled = false; return; }
   if(!k){ t.innerHTML = '<option value="">Tolerancia</option>'; t.disabled = true; return; }
   if(k==='nat'){ t.innerHTML = COUNTRY_OPTS; t.disabled = false; return; }
   if(k==='pid'){ t.innerHTML = '<option value="">sin tolerancia</option>'; t.disabled = true; return; }
@@ -516,8 +529,15 @@ function buildExtraRow(){
     if(k==='nat' && !t){ m.textContent = 'Elige un país.'; return; }
     if(k==='pid' && !hasPid()){ m.textContent = 'Para usar PID es necesario ingresar el PID en el Paso 1.'; return; }
     if(k==='week' && weekValue()===null){ m.textContent = 'Para usar la semana es necesario indicar la semana de referencia (1 a 13) en el Paso 2.'; return; }
-    extras = extras.filter(e=>e.k!==k);
-    extras.push({k, t: k==='pid' ? '' : t});
+    let ent = {k, t: k==='pid' ? '' : t};
+    if(k==='agerange'){
+      const a = parseInt(t,10), b = parseInt($('extraTol2').value,10);
+      if(!(a>=16) || !(b>=16)){ m.textContent = 'Elige la edad mínima (desde 16) y la edad máxima (hasta 99).'; return; }
+      if(b<a){ m.textContent = 'La edad máxima no puede ser inferior a la edad mínima.'; return; }
+      ent = {k, t:String(a), t2:String(b)};
+    }
+    extras = extras.filter(e=>e.k!==k && !(k==='agerange' && e.k==='age') && !(k==='age' && e.k==='agerange'));
+    extras.push(ent);
     sel.value = ''; setTolFor('');   // queda lista una nueva fila de desplegables
     m.textContent = 'Parámetro añadido.';
     refresh(); saveSettings();
@@ -594,7 +614,7 @@ function setPos(p){
   document.querySelectorAll('#posSeg button, .posq button').forEach(b=>b.classList.toggle('on', b.dataset.pos===p));
   $('posHelp').textContent = '';
   $('typeMsg').classList.add('hide');
-  $('tolDesc').innerHTML = '<b>Criterio de búsqueda:</b> ' + POS_HELP[p];
+  $('tolDesc').innerHTML = $('tolDesc3').innerHTML = '<b>Criterio de búsqueda:</b> ' + POS_HELP[p];
   if(player) renderSummary();
   refresh();
 }
@@ -897,6 +917,7 @@ function cleanExtra(x){
   if(!d) return null;
   if(d.k==='nat') return COUNTRIES.some(c=>String(c[0])===String(x.t)) ? {k:'nat', t:String(x.t)} : null;
   if(d.k==='pid') return {k:'pid', t:''};
+  if(d.k==='agerange'){ const a=parseInt(x.t,10), b=parseInt(x.t2,10); return a>=16 && b<=99 && b>=a ? {k:'agerange', t:String(a), t2:String(b)} : null; }
   const n = parseInt(x.t,10);
   return {k:d.k, t:String(Number.isFinite(n) && n>=0 && n<=20 ? n : 1)};
 }
@@ -1127,6 +1148,13 @@ async function updateSeason(){
   btn.disabled=false;
 }
 $('seasonBtn').addEventListener('click',updateSeason);
+// Avisos de advertencia siempre en rojo
+(function(){
+  const warnRe = /^(No |Elige|Para |Ingresa|Error|Falta|La edad|Edad)/;
+  const tone = el => el.classList.toggle('bad', warnRe.test(el.textContent.trim()));
+  const mo = new MutationObserver(ms=>{ for(const m of ms){ const el = m.target.nodeType===1 ? m.target : m.target.parentElement; if(el) tone(el); } });
+  document.querySelectorAll('.status, #weekHint, #seasonMsg').forEach(el=>{ mo.observe(el,{childList:true,characterData:true,subtree:true}); tone(el); });
+})();
 if(seasonCheckDue(new Date())) updateSeason();
 </script>
 </body>
