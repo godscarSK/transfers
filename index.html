@@ -89,6 +89,9 @@
   .saved h3{font-size:.95rem;margin:0 0 8px}
   .sitem{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
   .sitem small{color:var(--muted);display:block}
+  #extraList .sitem,#savedList .sitem{padding:8px 10px;border-radius:6px;border-bottom:0}
+  #extraList .sitem:nth-child(odd),#savedList .sitem:nth-child(odd){background:rgba(120,120,120,.13)}
+  #extraList .sitem:nth-child(even),#savedList .sitem:nth-child(even){background:rgba(120,120,120,.04)}
   .sitem button{padding:4px 10px;font-size:.85rem}
   .tgl{display:inline-flex;align-items:center;gap:8px;font-weight:700;border:1px solid transparent;border-radius:10px;padding:10px 16px}
   .tgl.adv{background:#7b3fa0;color:#fff;border-color:#5f2d80}
@@ -100,7 +103,7 @@
   #advPanel{border:2px solid #7b3fa0}
   #savedPanel{border:2px solid #b79a4c}
   @media (prefers-color-scheme:dark){.tgl.adv{background:#8a4fb0;border-color:#b78be0}#advPanel{border-color:#b78be0}#savedPanel{border-color:#d9bf7a}}
-  .desc.crit{background:none;text-align:left;width:fit-content;margin-left:auto;margin-right:auto;color:#c99700;font-weight:400}
+  .desc.crit{background:none;border:2px solid currentColor;border-radius:10px;padding:10px 18px;text-align:left;width:fit-content;margin-left:auto;margin-right:auto;color:#c99700;font-weight:400}
   .desc.crit b{font-weight:700}
   #savedPanel{border-color:#e0509b!important}
   @media (prefers-color-scheme:dark){.desc.crit{color:#ffd43b}#savedPanel{border-color:#ff7ab8!important}}
@@ -165,12 +168,13 @@
     <div id="ignoreHelp" class="hide" style="margin:-4px 0 12px;font-size:.88rem;color:var(--muted)">No usa ningún dato del Paso 1 + solo temporadas, moneda y parámetros adicionales (por ejemplo país o rango de edad).</div>
     <div id="typeMsg" class="err hide" style="margin:-4px 0 12px"></div>
     <div class="grid">
-      <div><label for="season">Temporada actual</label><div class="row" style="gap:6px;flex-wrap:nowrap"><input id="season" type="number" min="1" value="79"><button type="button" id="seasonBtn" title="Lee la temporada máxima desde Geston">Actualizar</button></div><div id="seasonMsg" style="font-size:.82rem;margin-top:4px;color:var(--muted)"></div></div>
-      <div><label for="window">Temporadas hacia atrás (solo DB)</label><input id="window" type="number" min="0" value="2"></div>
-      <div><label for="curr">Moneda</label><select id="curr"></select></div>
+      <div><label for="season">TEMPORADA ACTUAL</label><div class="row" style="gap:6px;flex-wrap:nowrap"><input id="season" type="number" min="1" value="79"><button type="button" id="seasonBtn" title="Lee la temporada máxima desde Geston">Actualizar</button></div><div id="seasonMsg" style="font-size:.82rem;margin-top:4px;color:var(--muted)"></div></div>
+      <div><label for="window">TEMPORADAS HACIA ATRÁS</label><input id="window" type="number" min="0" value="2"></div>
+      <div><label for="curr">MONEDA</label><select id="curr"></select></div>
     </div>
+    <div id="seasonWarn" class="bad hide" style="font-size:.88rem;margin-top:6px"></div>
     <div style="margin-top:12px">
-      <label for="weekIn">Filtrar por semana (solo DB, búsquedas por posición): ingresa una semana de 1 a 13 y se buscará ±2 semanas</label>
+      <label for="weekIn" title="Solo Transfers DB y búsquedas por posición: ingresa una semana de 1 a 13 y se buscará ±2 semanas">SEMANA</label>
       <div class="row">
         <input id="weekIn" type="number" min="1" max="13" step="1" placeholder="vacío = sin filtro" style="max-width:200px">
         <span id="weekHint" style="color:var(--muted);font-size:.88rem"></span>
@@ -188,7 +192,7 @@
 
     <div class="panel hide" id="advPanel">
       <div>
-        <label>Parámetros adicionales</label>
+        <label>CONFIGURACIÓN AVANZADA</label>
         <p class="status" style="margin:0 0 8px">Cada parámetro toma su valor del jugador del Paso 1 y busca ± la tolerancia elegida; reemplaza al criterio equivalente de la búsqueda. País se elige en el segundo desplegable, y PID no usa tolerancia.</p>
         <div id="extraList"></div>
         <div class="row" id="extraNew">
@@ -200,12 +204,13 @@
         <div class="status" id="extraMsg"></div>
       </div>
       <div style="margin-top:12px">
-        <label for="proxy">Dirección de tu proxy (Cloudflare Worker, necesario para “Mostrar Resultados”)</label>
+        <label for="proxy" title="Cloudflare Worker, necesario para “Mostrar Resultados”">DIRECCIÓN PROXY</label>
         <input id="proxy" placeholder="https://mi-proxy.tuusuario.workers.dev">
       </div>
     </div>
 
     <div class="panel hide" id="savedPanel">
+      <label>BÚSQUEDAS GUARDADAS</label>
       <p class="status" style="margin:0 0 10px">Guarda los ajustes de los Pasos 2 y 3 (el Paso 1 no se guarda). Quedan en este dispositivo; usa Exportar e Importar para llevarlas a otro.</p>
       <div class="row">
         <input id="saveName" placeholder="Nombre (opcional)" style="max-width:260px" maxlength="80">
@@ -430,16 +435,24 @@ function weekValue(){
   return Number.isInteger(n) && n>=1 && n<=13 ? n : null;
 }
 
+const MIN_SEASON = 60;
+function seasonWarning(){
+  const rawS = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
+  if(rawS < MIN_SEASON) return 'La temporada mínima es '+MIN_SEASON+'. El enlace de búsqueda asume que la temporada actual es '+MIN_SEASON+'.';
+  if(rawS - w < MIN_SEASON) return 'La temporada mínima es '+MIN_SEASON+'. El enlace de búsqueda asume '+MIN_SEASON+' como la temporada más antigua.';
+  return '';
+}
 function buildPairs(live){
   const p = player, tol = TOL[pos];
   let q = [];
-  const s = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
+  const rawS = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
+  const s = Math.max(MIN_SEASON, rawS), lo = Math.max(MIN_SEASON, s-w);
   if(pos==='PID'){
     if(!live) q.push(['ssnsto', s]);
     q.push(['curr', $('curr').value], ['pid', p.pid]);
   }else{
     if(!live){
-      q.push(['ssnsfr', s-w], ['ssnsto', s]);
+      q.push(['ssnsfr', lo], ['ssnsto', s]);
       const wk = weekValue();
       if(wk!==null && POSITIONAL.includes(pos)) q.push(['weekfr', Math.max(1, wk-2)], ['weekto', Math.min(13, wk+2)]);
     }
@@ -611,6 +624,7 @@ function refresh(){
   if(pos==='PAIS') ok = true;
   else if(pos==='PID') ok = pidOk;
   else ok = !!(player && !player.missing.length && !(pos==='GK' && player.gk===undefined));
+  { const sw = seasonWarning(), el = $('seasonWarn'); el.textContent = sw; el.classList.toggle('hide', !sw); }
   renderCriteria(ok);
   $('ignoreHelp').classList.toggle('hide', pos!=='PAIS');
   for(const k of ['Db','Live']){
