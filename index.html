@@ -14,7 +14,7 @@
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-  main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+  main{max-width:1100px;margin:0 auto;padding:20px 16px 60px;position:relative}
   h1{font-size:1.5rem;margin:0 0 4px}
   h2{font-size:1.05rem;margin:0 0 10px}
   p.sub{margin:0 0 18px;color:var(--muted)}
@@ -136,7 +136,8 @@
 </head>
 <body>
 <main>
-  <h1>TRANSFERENCIAS SOKKER</h1>
+  <button id="themeBtn" type="button" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar entre modo claro y oscuro" style="position:absolute;top:14px;right:16px;padding:6px 12px">🌙</button>
+  <h1 style="padding-right:64px">TRANSFERENCIAS SOKKER</h1>
   <p class="sub">Pega los datos de un jugador (con el botón de copiar de Sokker), elige su posición y consulta las transferencias parecidas en <em>Transfers DB</em> y <em>Transfers Live</em>.</p>
 
   <section class="card sec-1">
@@ -156,12 +157,12 @@
     <h2>PASO 2 - DEFINIR BÚSQUEDA</h2>
     <div class="row" style="margin-bottom:12px">
       <div class="seg" id="posSeg">
-        <button data-pos="GK" class="on">GK</button>
+        <button data-pos="PAIS" class="on">IGNORAR PASO 1</button>
+        <button data-pos="GK">GK</button>
         <button data-pos="DEF">DEF</button>
         <button data-pos="MID">MID</button>
         <button data-pos="ATT">ATT</button>
         <button data-pos="PID" id="pidBtn">PID</button>
-        <button data-pos="PAIS">IGNORAR PASO 1</button>
       </div>
       <span id="posHelp" style="color:var(--muted);font-size:.88rem"></span>
     </div>
@@ -220,7 +221,7 @@
       </div>
       <div id="ioArea" class="hide" style="margin-top:10px">
         <textarea id="ioBox" rows="5" spellcheck="false" style="width:100%;font-family:ui-monospace,monospace;font-size:.8rem"></textarea>
-        <div class="row" style="margin-top:6px"><button class="primary hide" id="importGo" type="button">Aplicar importación</button><button id="ioClose" type="button">Cerrar</button></div>
+        <div class="row" style="margin-top:6px"><button class="primary hide" id="importGo" type="button">Aplicar importación</button><button class="danger" id="ioClear" type="button">LIMPIAR</button><button id="ioClose" type="button">Cerrar</button></div>
       </div>
       <div id="savedWarn" class="bad" style="font-size:.88rem;margin-top:6px"></div>
       <div class="status" id="savedMsg"></div>
@@ -247,11 +248,11 @@
       </div>
       <div class="posq"><small>Buscar como:</small>
         <div class="seg">
+          <button type="button" data-pos="PAIS">IGNORAR PASO 1</button>
           <button type="button" data-pos="DEF">DEF</button>
           <button type="button" data-pos="MID">MID</button>
           <button type="button" data-pos="ATT">ATT</button>
           <button type="button" data-pos="PID" class="pidq">PID</button>
-          <button type="button" data-pos="PAIS">IGNORAR PASO 1</button>
         </div>
       </div>
       <div class="status" id="statusDb"></div>
@@ -270,11 +271,11 @@
       </div>
       <div class="posq"><small>Buscar como:</small>
         <div class="seg">
+          <button type="button" data-pos="PAIS">IGNORAR PASO 1</button>
           <button type="button" data-pos="DEF">DEF</button>
           <button type="button" data-pos="MID">MID</button>
           <button type="button" data-pos="ATT">ATT</button>
           <button type="button" data-pos="PID" class="pidq">PID</button>
-          <button type="button" data-pos="PAIS">IGNORAR PASO 1</button>
         </div>
       </div>
       <div class="status" id="statusLive"></div>
@@ -342,12 +343,12 @@ const POS_HELP = {
   DEF: 'misma edad + def SS igual + def sides ±2 + striker máximo 10',
   MID: 'misma edad + defender ±1 + wing SS igual + striker máximo 10',
   ATT: 'misma edad + att SS igual + att sides ±3',
-  PID: 'todas las transferencias de un único jugador (por su PID) + hasta la temporada actual (no usa edad ni habilidades)',
+  PID: 'todas las transferencias de un único jugador (por su PID) + solo PID y moneda (ignora el resto del Paso 2)',
   PAIS:''
 };
 
 const $ = id => document.getElementById(id);
-let player = null, pos = 'GK';
+let player = null, pos = 'PAIS';
 
 /* ---------- Parseo del texto de Sokker ---------- */
 function parsePlayer(text){
@@ -435,10 +436,13 @@ function weekValue(){
   return Number.isInteger(n) && n>=1 && n<=13 ? n : null;
 }
 
-const MIN_SEASON = 60;
+const MIN_SEASON = 61, SEASON_MAX_KEY = 'sokkerSeasonMax';
+function maxSeason(){ try{ const v = parseInt(localStorage.getItem(SEASON_MAX_KEY),10); return v>=MIN_SEASON ? v : null; }catch{ return null; } }
 function seasonWarning(){
-  const rawS = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
+  if(pos==='PID') return '';                       // la búsqueda por PID no usa temporadas
+  const rawS = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0), mx = maxSeason();
   if(rawS < MIN_SEASON) return 'La temporada mínima es '+MIN_SEASON+'. El enlace de búsqueda asume que la temporada actual es '+MIN_SEASON+'.';
+  if(mx && rawS > mx) return 'La temporada máxima posible es '+mx+'. El enlace de búsqueda asume que la temporada actual es '+mx+'.';
   if(rawS - w < MIN_SEASON) return 'La temporada mínima es '+MIN_SEASON+'. El enlace de búsqueda asume '+MIN_SEASON+' como la temporada más antigua.';
   return '';
 }
@@ -446,10 +450,9 @@ function buildPairs(live){
   const p = player, tol = TOL[pos];
   let q = [];
   const rawS = parseInt($('season').value)||0, w = Math.max(0, parseInt($('window').value)||0);
-  const s = Math.max(MIN_SEASON, rawS), lo = Math.max(MIN_SEASON, s-w);
+  const mxS = maxSeason(), s = Math.min(mxS||Infinity, Math.max(MIN_SEASON, rawS)), lo = Math.max(MIN_SEASON, s-w);
   if(pos==='PID'){
-    if(!live) q.push(['ssnsto', s]);
-    q.push(['curr', $('curr').value], ['pid', p.pid]);
+    q.push(['curr', $('curr').value], ['pid', p.pid]);   // PID ignora el Paso 2 salvo la moneda
   }else{
     if(!live){
       q.push(['ssnsfr', lo], ['ssnsto', s]);
@@ -528,6 +531,7 @@ function renderCriteria(ok){
 function extraPairs(e, live){
   const d = extraDef(e.k);
   if(!d) return null;
+  if(pos==='PID') return null;                  // PID: solo PID y moneda
   if(e.k==='agerange'){ const a=parseInt(e.t,10), b=parseInt(e.t2,10); return a>=16 && b<=99 && b>=a ? [['agemin',a],['agemax',b]] : null; }
   if(e.k==='week'){
     const wk = weekValue(); if(wk===null || live) return null;
@@ -559,7 +563,7 @@ function renderAdded(){
     const row = document.createElement('div'); row.className = 'sitem';
     const info = document.createElement('div');
     const b = document.createElement('b'); b.textContent = txt; info.appendChild(b);
-    if(!applies){ const w = document.createElement('small'); w.textContent = 'No se aplica por ahora: '+(e.k==='week' ? 'falta la semana de referencia en el Paso 2.' : pos==='PAIS' ? 'IGNORAR PASO 1 no usa datos del jugador.' : 'falta el dato en el Paso 1.'); info.appendChild(w); }
+    if(!applies){ const w = document.createElement('small'); w.textContent = 'No se aplica por ahora: '+(e.k==='week' ? 'falta la semana de referencia en el Paso 2.' : pos==='PID' ? 'La búsqueda por PID solo usa el PID y la moneda.' : pos==='PAIS' ? 'IGNORAR PASO 1 no usa datos del jugador.' : 'falta el dato en el Paso 1.'); info.appendChild(w); }
     const rm = document.createElement('button'); rm.type='button'; rm.textContent='✕ Quitar'; rm.title='Quitar parámetro';
     rm.addEventListener('click',()=>{ extras.splice(i,1); $('extraMsg').textContent=''; refresh(); saveSettings(); });
     row.append(info, rm); box.appendChild(row);
@@ -1139,10 +1143,45 @@ function resetAll(){
   for(const id in DEFAULTS) $(id).value = DEFAULTS[id];
   extras = []; $('extraKey').value = ''; setTolFor(''); $('extraMsg').textContent = '';
   $('saveName').value = '';
-  onPaste(true); saveSettings(); setPos('GK');
+  onPaste(true); saveSettings(); setPos('PAIS');
+}
+
+/* ---------- Modo claro / oscuro ---------- */
+// Los bloques @media (prefers-color-scheme:dark) se reescriben según el modo: auto (sistema), claro (se quitan) u oscuro (se aplican siempre)
+const styleEl = document.querySelector('style'), baseCss = styleEl.textContent;
+function themeCss(mode){
+  const tag = '@media (prefers-color-scheme:dark){'; let out = '', i = 0;
+  for(;;){
+    const k = baseCss.indexOf(tag, i);
+    if(k<0){ out += baseCss.slice(i); break; }
+    out += baseCss.slice(i, k);
+    let d = 1, j = k + tag.length;
+    while(d>0 && j<baseCss.length){ const c = baseCss[j++]; if(c==='{') d++; else if(c==='}') d--; }
+    const body = baseCss.slice(k + tag.length, j-1);
+    out += mode==='dark' ? body : mode==='light' ? '' : baseCss.slice(k, j);
+    i = j;
+  }
+  return out;
+}
+let themeMode = 'auto';
+function applyTheme(mode){
+  themeMode = mode; styleEl.textContent = themeCss(mode);
+  const dark = mode==='dark' || (mode==='auto' && matchMedia('(prefers-color-scheme:dark)').matches);
+  $('themeBtn').textContent = dark ? '☀️' : '🌙';
+  $('themeBtn').title = dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+}
+function initTheme(){
+  let m = 'auto'; try{ const v = localStorage.getItem('sokkerTheme'); if(v==='light'||v==='dark') m = v; }catch{}
+  applyTheme(m);
+  $('themeBtn').addEventListener('click', ()=>{
+    const dark = themeMode==='dark' || (themeMode==='auto' && matchMedia('(prefers-color-scheme:dark)').matches);
+    const nm = dark ? 'light' : 'dark'; applyTheme(nm);
+    try{ localStorage.setItem('sokkerTheme', nm); }catch{}
+  });
 }
 
 function init(){
+  initTheme();
   $('curr').innerHTML = CURRENCIES.map((c,i)=>`<option value="${i+1}">${c}</option>`).join('');
   $('curr').value = '13';
   const coll = new Intl.Collator('es', {sensitivity:'base'});
@@ -1206,9 +1245,10 @@ function init(){
   $('exportBtn').addEventListener('click', exportSearches);
   $('importBtn').addEventListener('click', openImport);
   $('importGo').addEventListener('click', ()=>importSearches($('ioBox').value));
+  $('ioClear').addEventListener('click', ()=>{ $('ioBox').value = ''; $('ioBox').focus(); $('savedMsg').textContent = ''; $('savedWarn').textContent = ''; });
   $('ioClose').addEventListener('click', ()=>$('ioArea').classList.add('hide'));
   loadSearches(); renderSaved();
-  setPos('GK');
+  setPos('PAIS');
 }
 init();
 
@@ -1243,7 +1283,7 @@ async function updateSeason(){
       const doc=new DOMParser().parseFromString(html,'text/html');
       const el=doc.querySelector('#ssnsto')||doc.querySelector('input[name="ssnsto"]');
       const mx=el&&parseInt(el.getAttribute('max'));
-      if(mx>0){ try{ localStorage.setItem(SEASON_KEY, ymd(lastSaturday(new Date()))); }catch{}
+      if(mx>0){ try{ localStorage.setItem(SEASON_KEY, ymd(lastSaturday(new Date()))); localStorage.setItem(SEASON_MAX_KEY, String(mx)); }catch{}
         $('season').value=mx; $('season').dispatchEvent(new Event('input',{bubbles:true})); msg.textContent='Temporada actual: '+mx; ok=true; break; }
     }catch(e){}
   }
