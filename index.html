@@ -138,7 +138,7 @@
 <main>
   <button id="themeBtn" type="button" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar entre modo claro y oscuro" style="position:absolute;top:14px;right:16px;padding:6px 12px">🌙</button>
   <h1 style="padding-right:64px">TRANSFERENCIAS SOKKER</h1>
-  <p class="sub">Pega los datos de un jugador (con el botón de copiar de Sokker), elige su posición y consulta las transferencias parecidas en <em>Transfers DB</em> y <em>Transfers Live</em>.</p>
+  <p class="sub">Pega los datos de un jugador (con el botón de copiar de Sokker), elige su posición y consulta las transferencias parecidas en <em>Transfers DB</em> y <em>Transfers LIVE</em>.</p>
 
   <section class="card sec-1">
     <h2>PASO 1 - IMPORTAR DATOS</h2>
@@ -180,6 +180,10 @@
         <input id="weekIn" type="number" min="1" max="13" step="1" placeholder="vacío = sin filtro" style="max-width:200px">
         <span id="weekHint" style="color:var(--muted);font-size:.88rem"></span>
       </div>
+    </div>
+    <div style="margin-top:12px;max-width:240px">
+      <label for="orderDb">ORDENAMIENTO DB</label>
+      <select id="orderDb"><option value="1">Precio</option><option value="2">Temporada</option><option value="3">Edad</option></select>
     </div>
     <div class="hide"><select id="nat"></select></div>
     <div class="desc crit" id="tolDesc"></div>
@@ -237,10 +241,6 @@
   <div class="two">
     <section class="card sec-db">
       <h2>Transfers DB <span style="color:#2f7bf0" aria-hidden="true">●</span></h2>
-      <label for="orderDb">Ordenar por</label>
-      <select id="orderDb" style="margin-bottom:8px">
-        <option value="1">Precio</option><option value="2">Temporada</option><option value="3">Edad</option>
-      </select>
       <div class="url" id="urlDb">—</div>
       <div class="row" style="justify-content:space-between">
         <button class="orange" id="loadDb">Mostrar Resultados</button>
@@ -259,7 +259,7 @@
     </section>
 
     <section class="card sec-live">
-      <h2>Transfers Live <span style="color:#e53935" aria-hidden="true">●</span></h2>
+      <h2>Transfers LIVE <span style="color:#e53935" aria-hidden="true">●</span></h2>
       <input type="hidden" id="orderLive" value="2">
       <div class="url" id="urlLive">—</div>
       <div class="row" style="justify-content:space-between">
@@ -507,7 +507,6 @@ function criteriaLines(){
   else if(m.ssnsto!==undefined) lines.push('hasta la temporada '+m.ssnsto);
   done.add('ssnsfr'); done.add('ssnsto');
   range('week','semanas');
-  if(m.curr!==undefined) lines.push('moneda '+(CURRENCIES[m.curr-1]||m.curr));
   done.add('curr');
   if(m.pid!==undefined) lines.push('PID '+m.pid);
   if(m.nat!==undefined) lines.push('país '+((COUNTRIES.find(c=>String(c[0])===String(m.nat))||[])[1]||m.nat));
