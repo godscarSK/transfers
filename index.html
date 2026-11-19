@@ -6,7 +6,7 @@
 <title>TRANSFERENCIAS SOKKER</title>
 <style>
   :root{
-    --bg:#f4f6f3; --card:#fff; --ink:#1c2a22; --muted:#5f6f65; --line:#dbe3dc;
+    --bg:#ece4d0; --card:#faf6ea; --ink:#1c2a22; --muted:#5f6f65; --line:#d6ccb2;
     --accent:#1f7a4a; --accent-ink:#fff; --accent-soft:#e3f2e9; --warn:#a15c00; --bad:#c62828; --purple:#7b3fa0;
   }
   @media (prefers-color-scheme:dark){
@@ -236,10 +236,10 @@
 
   <div class="two">
     <section class="card sec-db">
-      <h2>Transfers DB <span style="font-weight:400;color:var(--muted)">(historial)</span></h2>
+      <h2>Transfers DB <span style="color:#2f7bf0" aria-hidden="true">●</span></h2>
       <label for="orderDb">Ordenar por</label>
       <select id="orderDb" style="margin-bottom:8px">
-        <option value="1">Precio</option><option value="2">Finalización</option><option value="3">Edad</option>
+        <option value="1">Precio</option><option value="2">Temporada</option><option value="3">Edad</option>
       </select>
       <div class="url" id="urlDb">—</div>
       <div class="row" style="justify-content:space-between">
@@ -259,11 +259,8 @@
     </section>
 
     <section class="card sec-live">
-      <h2>Transfers Live <span style="font-weight:400;color:var(--muted)">(en curso)</span></h2>
-      <label for="orderLive">Ordenar por</label>
-      <select id="orderLive" style="margin-bottom:8px">
-        <option value="1">Precio</option><option value="2" selected>Finalización</option><option value="3">Edad</option>
-      </select>
+      <h2>Transfers Live <span style="color:#e53935" aria-hidden="true">●</span></h2>
+      <input type="hidden" id="orderLive" value="2">
       <div class="url" id="urlLive">—</div>
       <div class="row" style="justify-content:space-between">
         <button class="orange" id="loadLive">Mostrar Resultados</button>
@@ -681,8 +678,9 @@ function renderSummary(){
   sk.appendChild(t); sk.classList.remove('hide');
 }
 
-function setPos(p){
+function setPos(p, keepOrder){
   pos = p;
+  if(!keepOrder) $('orderDb').value = p==='PID' ? '2' : '1';   // PID: por temporada; el resto: por precio
   document.querySelectorAll('#posSeg button, .posq button').forEach(b=>b.classList.toggle('on', b.dataset.pos===p));
   $('posHelp').textContent = '';
   $('typeMsg').classList.add('hide');
@@ -1131,8 +1129,9 @@ function applyState(st){
   for(const id of ['season','window','curr','nat','orderDb','orderLive']) $(id).value = st[id];
   extras = (st.extras||[]).map(cleanExtra).filter(Boolean);
   $('weekIn').value = st.week; weekAuto = false;
+  $('orderLive').value = '2';
+  setPos(st.type, true);
   saveSettings();
-  setPos(st.type);
 }
 
 // Valores por defecto de la búsqueda (la dirección del proxy no es un parámetro de búsqueda y se conserva)
