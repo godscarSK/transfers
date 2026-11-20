@@ -175,11 +175,13 @@
     </div>
     <div id="seasonWarn" class="bad hide" style="font-size:.88rem;margin-top:6px"></div>
     <div style="margin-top:12px">
-      <label for="weekIn" title="Solo Transfers DB y búsquedas por posición: ingresa una semana de 1 a 13 y se buscará ±2 semanas">SEMANA</label>
+      <label for="weekIn" title="Solo Transfers DB: ingresa una semana de 1 a 13; se buscará esa semana ± RANGO SEMANAS">SEMANA</label>
       <div class="row">
         <input id="weekIn" type="number" min="1" max="13" step="1" placeholder="vacío = sin filtro" style="max-width:200px">
         <span id="weekHint" style="color:var(--muted);font-size:.88rem"></span>
       </div>
+      <label for="weekRange" style="margin-top:10px" title="Cuántas semanas hacia cada lado de SEMANA. Solo se usa si SEMANA tiene un valor.">RANGO SEMANAS</label>
+      <input id="weekRange" type="number" min="0" max="12" step="1" value="2" style="max-width:200px">
     </div>
     <div style="margin-top:12px;max-width:240px">
       <label for="orderDb">ORDENAMIENTO DB</label>
@@ -426,6 +428,7 @@ const modeNow = () => POSITIONAL.includes(pos) ? pos : null;
 const hasPid = () => !!(player && player.pid);
 
 // Semana de referencia (1 a 13) escrita en el Paso 2, o null si está vacía o es inválida
+function weekRangeValue(){ const n = parseInt($('weekRange').value,10); return Number.isFinite(n) ? Math.min(12, Math.max(0, n)) : 2; }
 function weekValue(){
   const v = $('weekIn').value.trim();
   if(v==='') return null;
@@ -454,7 +457,7 @@ function buildPairs(live){
     if(!live){
       q.push(['ssnsfr', lo], ['ssnsto', s]);
       const wk = weekValue();
-      if(wk!==null && POSITIONAL.includes(pos)) q.push(['weekfr', Math.max(1, wk-2)], ['weekto', Math.min(13, wk+2)]);
+      if(wk!==null && (POSITIONAL.includes(pos) || pos==='PAIS')){ const r = weekRangeValue(); q.push(['weekfr', Math.max(1, wk-r)], ['weekto', Math.min(13, wk+r)]); }
     }
     q.push(['curr', $('curr').value]);
     if(pos!=='PAIS'){
@@ -499,7 +502,7 @@ function criteriaLines(){
     const lo = m[base+'min'] ?? m[base+'fr'], hi = m[base+'max'] ?? m[base+'to'];
     done.add(base+'min'); done.add(base+'max'); done.add(base+'fr'); done.add(base+'to');
     if(lo===undefined && hi===undefined) return;
-    if(lo!==undefined && hi!==undefined) lines.push(lo===hi ? label+' igual a '+lo : label+' de '+lo+' a '+hi);
+    if(lo!==undefined && hi!==undefined) lines.push(lo===hi ? (base==='week' ? 'semana '+lo : label+' igual a '+lo) : label+' de '+lo+' a '+hi);
     else if(hi!==undefined) lines.push(label+' máximo '+hi);
     else lines.push(label+' mínimo '+lo);
   };
@@ -619,7 +622,7 @@ function refresh(){
   if(pos==='PID' && !pidOk){ tm.textContent = 'Para buscar por PID es necesario ingresar el PID del jugador en el Paso 1.'; tm.classList.remove('hide'); }
   // Pista de la semana
   const wk = weekValue(), raw = $('weekIn').value.trim();
-  $('weekHint').textContent = raw==='' ? '' : wk===null ? 'Ingresa un número entero de 1 a 13.' : 'Semanas '+Math.max(1,wk-2)+' a '+Math.min(13,wk+2);
+  $('weekHint').textContent = raw==='' ? '' : wk===null ? 'Ingresa un número entero de 1 a 13.' : 'Semanas '+Math.max(1,wk-weekRangeValue())+' a '+Math.min(13,wk+weekRangeValue());
   let ok;
   if(pos==='PAIS') ok = true;
   else if(pos==='PID') ok = pidOk;
@@ -1004,6 +1007,7 @@ function cleanSearch(o){
     window: num(o.window,0,99,'2'),
     curr: num(o.curr,1,CURRENCIES.length,'13'),
     week: (o.week===''||o.week==null) ? '' : num(o.week,1,13,''),
+    weekRange: num(o.weekRange,0,12,'2'),
     nat: COUNTRIES.some(c=>String(c[0])===String(o.nat)) ? String(o.nat) : '',
     orderDb: num(o.orderDb,1,3,'1'),
     orderLive: num(o.orderLive,1,3,'2'),
@@ -1013,7 +1017,7 @@ function cleanSearch(o){
 
 function currentState(){
   return {type:pos, season:$('season').value, window:$('window').value, curr:$('curr').value,
-    week:$('weekIn').value, nat:$('nat').value, orderDb:$('orderDb').value, orderLive:$('orderLive').value, extras: extras.map(e=>({...e}))};
+    week:$('weekIn').value, weekRange:$('weekRange').value, nat:$('nat').value, orderDb:$('orderDb').value, orderLive:$('orderLive').value, extras: extras.map(e=>({...e}))};
 }
 
 const TYPE_LABEL = {GK:'GK',DEF:'DEF',MID:'MID',ATT:'ATT',PID:'PID',PAIS:'IGNORAR PASO 1'};
@@ -1059,7 +1063,7 @@ function saveCurrent(){
 
 // Firma de una búsqueda sin nombre, fecha ni id: sirve para detectar repetidas
 function searchSig(x){
-  return JSON.stringify([x.type,x.season,x.window,x.curr,x.week,x.nat,x.orderDb,x.orderLive,
+  return JSON.stringify([x.type,x.season,x.window,x.curr,x.week,x.weekRange,x.nat,x.orderDb,x.orderLive,
     (x.extras||[]).map(e=>e.k+':'+e.t+':'+(e.t2||'')).sort()]);
 }
 async function exportSearches(){
@@ -1110,7 +1114,7 @@ function importSearches(text){
 
 /* ---------- Eventos ---------- */
 let weekAuto = false;
-const SAVED_FIELDS = ['season','window','curr','orderDb','orderLive','proxy','nat'];
+const SAVED_FIELDS = ['season','window','curr','weekRange','orderDb','orderLive','proxy','nat'];
 function saveSettings(){ try{ const s={}; for(const i of SAVED_FIELDS) s[i]=$(i).value; s.extras = extras; localStorage.setItem('sokkerTransfers',JSON.stringify(s)); }catch{} }
 
 function onPaste(fromLoad){
@@ -1127,7 +1131,7 @@ function onPaste(fromLoad){
 function applyState(st){
   for(const id of ['season','window','curr','nat','orderDb','orderLive']) $(id).value = st[id];
   extras = (st.extras||[]).map(cleanExtra).filter(Boolean);
-  $('weekIn').value = st.week; weekAuto = false;
+  $('weekIn').value = st.week; weekAuto = false; $('weekRange').value = st.weekRange;
   $('orderLive').value = '2';
   setPos(st.type, true);
   saveSettings();
@@ -1137,7 +1141,7 @@ function applyState(st){
 const DEFAULTS = {season:'79', window:'2', curr:'13', nat:'', orderDb:'1', orderLive:'2'};
 function resetAll(){
   if(!confirm('¿Reiniciar la búsqueda?\n\nTodos los parámetros de búsqueda volverán a sus valores por defecto, incluyendo los datos del Paso 1.')) return;
-  $('paste').value = ''; $('weekIn').value = ''; weekAuto = false;
+  $('paste').value = ''; $('weekIn').value = ''; $('weekRange').value = '2'; weekAuto = false;
   for(const id in DEFAULTS) $(id).value = DEFAULTS[id];
   extras = []; $('extraKey').value = ''; setTolFor(''); $('extraMsg').textContent = '';
   $('saveName').value = '';
@@ -1194,6 +1198,7 @@ function init(){
 
   $('paste').addEventListener('input', ()=>onPaste(false));
   $('weekIn').addEventListener('input', ()=>{ weekAuto = false; refresh(); });
+  $('weekRange').addEventListener('input', refresh);
   document.querySelectorAll('#posSeg button, .posq button').forEach(b=>b.addEventListener('click',()=>{
     if(b.dataset.pos==='PID' && !hasPid()){
       const tm = $('typeMsg');
